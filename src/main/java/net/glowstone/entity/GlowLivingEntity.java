@@ -1,16 +1,25 @@
 package net.glowstone.entity;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
+
+import net.glowstone.EventFactory;
 import net.glowstone.GlowServer;
 
+import net.glowstone.msg.EntityEffectMessage;
+import net.glowstone.msg.EntityRemoveEffectMessage;
+import org.bukkit.EntityEffect;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Egg;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.entity.Snowball;
 import org.bukkit.entity.Vehicle;
 
@@ -24,7 +33,7 @@ import net.glowstone.msg.RelativeEntityPositionRotationMessage;
 import net.glowstone.GlowWorld;
 
 /**
- * A GlowLivingEntity is a {@link Player} or {@link Monster}.
+ * A GlowLivingEntity is a {@link Player} or {@link org.bukkit.entity.Monster}.
  * @author Graham Edgecombe.
  */
 public abstract class GlowLivingEntity extends GlowEntity implements LivingEntity {
@@ -40,11 +49,24 @@ public abstract class GlowLivingEntity extends GlowEntity implements LivingEntit
     protected final List<Parameter<?>> metadata = new ArrayList<Parameter<?>>();
 
     /**
+     * The entity's active effects
+     */
+    private Set<ActiveEntityEffect> activeEffects = Collections.synchronizedSet(new HashSet<ActiveEntityEffect>());
+
+    /**
      * Creates a mob within the specified world.
      * @param world The world.
      */
     public GlowLivingEntity(GlowServer server, GlowWorld world) {
         super(server, world);
+    }
+
+    @Override
+    public void pulse() {
+        for (Iterator<ActiveEntityEffect> i = activeEffects.iterator(); i.hasNext();) {
+            ActiveEntityEffect effect = i.next();
+            if (!effect.pulse()) removeEntityEffect(effect);
+        }
     }
 
     @Override
@@ -199,6 +221,28 @@ public abstract class GlowLivingEntity extends GlowEntity implements LivingEntit
             metadata.set(data.getIndex(), data);
         } else {
             metadata.add(data);
+        }
+    }
+
+    public void addEntityEffect(EntityEffect effect, byte amplitude, short duration) {
+        addEntityEffect(new ActiveEntityEffect(effect, amplitude, duration));
+    }
+
+    public void addEntityEffect(ActiveEntityEffect effect) {
+        if (EventFactory.onEntityAddEffect(this, effect).isCancelled()) return;
+        activeEffects.add(effect);
+        EntityEffectMessage msg = new EntityEffectMessage(getEntityId(), effect.getEffect().getId(), effect.getAmplitude(), effect.getDuration());
+        for (GlowPlayer player : world.getRawPlayers()) {
+            if (player.canSee(this)) player.getSession().send(msg);
+        }
+    }
+
+    public void removeEntityEffect(ActiveEntityEffect effect) {
+        EventFactory.onEntityRemoveEffect(this, effect.getEffect());
+        activeEffects.remove(effect);
+        EntityRemoveEffectMessage msg = new EntityRemoveEffectMessage(getEntityId(), effect.getEffect().getId());
+        for (GlowPlayer player : world.getRawPlayers()) {
+            if (player.canSee(this)) player.getSession().send(msg);
         }
     }
 

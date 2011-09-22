@@ -61,12 +61,6 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
      * The player's active game mode
      */
     private GameMode gameMode;
-
-    /**
-     * The human entity's active effects
-     */
-    private Set<ActiveEntityEffect> activeEffects = Collections.synchronizedSet(new HashSet<ActiveEntityEffect>());
-    
     /**
      * Creates a human within the specified world and with the specified name.
      * @param world The world.
@@ -129,10 +123,6 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
         } else {
             sleepingTicks = 0;
         }
-        for (Iterator<ActiveEntityEffect> i = activeEffects.iterator(); i.hasNext();) {
-            ActiveEntityEffect effect = i.next();
-            if (!effect.pulse()) removeEntityEffect(effect);
-        }
     }
 
     // ---- Permissions stuff
@@ -189,17 +179,4 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
         isOp = value;
         recalculatePermissions();
     }
-    
-    public void addEntityEffect(ActiveEntityEffect effect) {
-        activeEffects.add(effect);
-    }
-
-    public void addEntityEffect(EntityEffect effect, byte amplitude, short duration) {
-        addEntityEffect(new ActiveEntityEffect(effect, amplitude, duration));
-    }
-
-    public void removeEntityEffect(ActiveEntityEffect effect) {
-        activeEffects.remove(effect);
-    }
-    
 }

@@ -1,16 +1,21 @@
 package net.glowstone;
 
+import net.glowstone.entity.ActiveEntityEffect;
 import net.glowstone.entity.GlowPlayer;
 import net.glowstone.net.Session;
 import net.glowstone.util.bans.BanManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.EntityEffect;
 import org.bukkit.Location;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.BlockState;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
+import org.bukkit.event.entity.EntityAddEffectEvent;
+import org.bukkit.event.entity.EntityRemoveEffectEvent;
 import org.bukkit.event.player.*;
 import org.bukkit.event.block.*;
 import org.bukkit.inventory.ItemStack;
@@ -111,5 +116,15 @@ public final class EventFactory {
     
     public static BlockPlaceEvent onBlockPlace(Block block, BlockState newState, Block against, Player player) {
         return callEvent(new BlockPlaceEvent(block, newState, against, player.getItemInHand(), player, true));
+    }
+
+    // -- Entity events
+
+    public static EntityAddEffectEvent onEntityAddEffect(Entity entity, ActiveEntityEffect effect) {
+        return callEvent(new EntityAddEffectEvent(entity, effect.getEffect(), effect.getAmplitude(), effect.getDuration()));
+    }
+
+    public static EntityRemoveEffectEvent onEntityRemoveEffect(Entity entity, EntityEffect effect) {
+        return callEvent(new EntityRemoveEffectEvent(entity, effect));
     }
 }

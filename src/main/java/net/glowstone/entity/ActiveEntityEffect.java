@@ -1,5 +1,7 @@
 package net.glowstone.entity;
 
+import org.bukkit.EntityEffect;
+
 public class ActiveEntityEffect {
     private final EntityEffect effect;
     private byte amplitude;
