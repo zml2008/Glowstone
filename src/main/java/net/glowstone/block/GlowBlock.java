@@ -87,11 +87,11 @@ public class GlowBlock implements Block {
     }
 
     public GlowBlock getFace(BlockFace face) {
-        return getRelative(face.getModX(), face.getModY(), face.getModZ());
+        return getRelative(face);
     }
 
     public GlowBlock getFace(BlockFace face, int distance) {
-        return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
+        return getRelative(face, distance);
     }
 
     public GlowBlock getRelative(int modX, int modY, int modZ) {
@@ -100,6 +100,10 @@ public class GlowBlock implements Block {
 
     public GlowBlock getRelative(BlockFace face) {
         return getRelative(face.getModX(), face.getModY(), face.getModZ());
+    }
+
+    public GlowBlock getRelative(BlockFace face, int distance) {
+        return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
     }
     
     // type and typeid getters/setters
@@ -191,10 +195,6 @@ public class GlowBlock implements Block {
     }
 
     public int getBlockPower() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public Block getRelative(BlockFace face, int distance) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

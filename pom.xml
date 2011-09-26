@@ -38,6 +38,15 @@
                 <enabled>true</enabled>
             </snapshots>
         </repository>
+        <repository>
+            <id>sk-mvn2</id>
+            <name>sk89q mvn2</name>
+            <layout>default</layout>
+            <url>http://mvn2.sk89q.com/repo</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
     </repositories>
     
     <pluginRepositories>
@@ -88,6 +97,11 @@
             <artifactId>jterminal</artifactId>
             <version>1.0.0</version>
         </dependency>
+        <dependency>
+            <groupId>com.sk89q</groupId>
+            <artifactId>worldedit</artifactId>
+            <version>4.7-SNAPSHOT</version>
+        </dependency>
     </dependencies>
     
     <build>
@@ -125,6 +139,7 @@
                             <Specification-Title>Bukkit</Specification-Title>
                             <Specification-Version>${api.version}</Specification-Version>
                             <Specification-Vendor>Bukkit Team</Specification-Vendor>
+                            <Class-Path>lib/WorldEdit.jar</Class-Path>
                             <Sealed>true</Sealed>
                         </manifestEntries>
                         <manifestSections>
@@ -153,6 +168,11 @@
                             <artifactSet>
                                 <excludes>
                                     <exclude>junit:junit</exclude>
+                                    <exclude>com.sk89q:worldedit</exclude>
+                                    <exclude>de.schlichtherle:truezip</exclude>
+                                    <exclude>rhino:js</exclude>
+                                    <exclude>com.sk89q:jchronic</exclude>
+                                    <exclude>com.sk89q:dummypermscompat</exclude>
                                 </excludes>
                             </artifactSet>
                         </configuration>
