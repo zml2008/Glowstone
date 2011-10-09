@@ -15,8 +15,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.List;
 import java.util.Map;
 import java.util.jar.JarEntry;
@@ -40,7 +42,7 @@ public class WorldEditUtils {
         if (pluginLoader == null) {
             throw new RuntimeException("Unable to get JavaPluginLoader");
         }
-        File pluginFile = null;
+        File pluginFile;
         try {
             pluginFile = downloadWorldEdit();
         } catch (IOException e) {
@@ -134,6 +136,13 @@ public class WorldEditUtils {
                 }
             } catch (IOException e) {
             }
+        }
+        try {
+            Method method = URLClassLoader.class.getDeclaredMethod("addURL", URL.class);
+            method.setAccessible(true);
+            method.invoke(GlowServer.class.getClassLoader(), worldEditFile.toURI().toURL());
+        } catch (Throwable t) {
+            t.printStackTrace();
         }
         return worldEditFile;
     }
