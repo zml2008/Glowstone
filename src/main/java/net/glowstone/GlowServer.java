@@ -518,12 +518,7 @@ public final class GlowServer implements Server {
         Plugin[] plugins = pluginManager.getPlugins();
         for (Plugin plugin : plugins) {
             if (!plugin.isEnabled() && plugin.getDescription().getLoad() == type) {
-                List<Command> pluginCommands = PluginCommandYamlParser.parse(plugin);
 
-                if (!pluginCommands.isEmpty()) {
-                    commandMap.registerAll(plugin.getDescription().getName(), pluginCommands);
-                }
-                
                 List<Permission> perms = plugin.getDescription().getPermissions();
                 for (Permission perm : perms) {
                     try {
@@ -567,8 +562,7 @@ public final class GlowServer implements Server {
             consoleManager.refreshCommands();
 
             storeQueue.reset();
-            
-            // TODO: Register aliases
+
         }
         catch (Exception ex) {
             logger.log(Level.SEVERE, "Uncaught error while reloading: {0}", ex.getMessage());
@@ -670,13 +664,13 @@ public final class GlowServer implements Server {
     }
     
     /**
-     * Gets a list of available commands from the command mapc.
+     * Gets a list of available commands from the command map.
      * @return A list of all commands at the time.
      */
     protected String[] getAllCommands() {
         HashSet<String> knownCommands = new HashSet<String>(builtinCommandMap.getKnownCommandNames());
         knownCommands.addAll(commandMap.getKnownCommandNames());
-        return knownCommands.toArray(new String[] {});
+        return knownCommands.toArray(new String[knownCommands.size()]);
     }
 
     /**
@@ -708,7 +702,7 @@ public final class GlowServer implements Server {
             for (Player player : world.getPlayers())
                 result.add(player);
         }
-        return result.toArray(new Player[]{});
+        return result.toArray(new Player[result.size()]);
     }
     
     /**
@@ -889,7 +883,7 @@ public final class GlowServer implements Server {
      */
     @Deprecated
     public GlowWorld createWorld(String name, Environment environment) {
-        return createWorld(name, environment, new Random().nextLong(), getGenerator(name, environment));
+        return createWorld(WorldCreator.name(name).environment(environment));
     }
 
     /**
@@ -904,7 +898,7 @@ public final class GlowServer implements Server {
      */
     @Deprecated
     public GlowWorld createWorld(String name, Environment environment, long seed) {
-        return createWorld(name, environment, seed, getGenerator(name, environment));
+        return createWorld(WorldCreator.name(name).environment(environment).seed(seed));
     }
 
     /**
@@ -919,7 +913,7 @@ public final class GlowServer implements Server {
      */
     @Deprecated
     public GlowWorld createWorld(String name, Environment environment, ChunkGenerator generator) {
-        return createWorld(name, environment, new Random().nextLong(), generator);
+        return createWorld(WorldCreator.name(name).environment(environment).generator(generator));
     }
 
     /**
@@ -1038,12 +1032,23 @@ public final class GlowServer implements Server {
      */
     public boolean dispatchCommand(CommandSender sender, String commandLine) {
         try {
-            if (commandMap.dispatch(sender, commandLine)) {
+            if (commandMap.dispatch(sender, commandLine, false)) {
                 return true;
             }
             
-            if (builtinCommandMap.dispatch(sender, commandLine)) {
+            if (builtinCommandMap.dispatch(sender, commandLine, false)) {
                 return true;
+            }
+
+            if (getFuzzyCommandMatching()) {
+                if (commandMap.dispatch(sender, commandLine, true)) {
+                    return true;
+                }
+
+                if (builtinCommandMap.dispatch(sender, commandLine, true)) {
+                return true;
+            }
+
             }
             
             return false;
@@ -1101,7 +1106,7 @@ public final class GlowServer implements Server {
         List<String> cmdAliases = new ArrayList<String>();
         for (String key : section.getKeys(false)) {
             cmdAliases.clear();
-            cmdAliases.addAll(section.getList(key));
+            cmdAliases.addAll(section.getStringList(key));
             aliases.put(key, cmdAliases.toArray(new String[cmdAliases.size()]));
         }
         return aliases;
@@ -1238,6 +1243,10 @@ public final class GlowServer implements Server {
 
     public StorageQueue getStorageQueue() {
         return storeQueue;
+    }
+
+    public boolean getFuzzyCommandMatching() {
+        return config.getBoolean("server.fuzzy-command-matching", false);
     }
      
 }

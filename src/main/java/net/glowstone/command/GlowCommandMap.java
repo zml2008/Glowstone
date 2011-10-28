@@ -1,23 +1,20 @@
 package net.glowstone.command;
 
+import net.glowstone.util.StringUtil;
 import org.bukkit.Server;
 import org.bukkit.command.Command;
+import org.bukkit.command.CommandException;
+import org.bukkit.command.CommandSender;
 import org.bukkit.command.SimpleCommandMap;
-import org.bukkit.command.defaults.*;
-import org.bukkit.command.defaults.BanCommand;
-import org.bukkit.command.defaults.HelpCommand;
-import org.bukkit.command.defaults.KickCommand;
-import org.bukkit.command.defaults.MeCommand;
-import org.bukkit.command.defaults.TimeCommand;
-import org.bukkit.command.defaults.WhitelistCommand;
-import org.bukkit.command.defaults.ListCommand;
+import org.bukkit.command.defaults.VanillaCommand;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.PluginManager;
+import static org.bukkit.util.Java15Compat.Arrays_copyOfRange;
 
 import java.util.*;
 
 /**
- * SimpleCommandMap that ignores certain "vanilla" commands.
+ * SimpleCommandMap that ignores certain "vanilla" commands and supports fuzzy command matching.
  */
 public class GlowCommandMap extends SimpleCommandMap {
 
@@ -41,6 +38,52 @@ public class GlowCommandMap extends SimpleCommandMap {
 
     public Collection<Command> getKnownCommands() {
         return knownCommands.values();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean dispatch(CommandSender sender, String commandLine, boolean fuzzy) throws CommandException {
+        String[] args = commandLine.split(" ");
+
+        if (args.length == 0) {
+            return false;
+        }
+
+        String sentCommandLabel = args[0].toLowerCase();
+        Command target = getCommand(sentCommandLabel);
+        if (target == null) {
+            if (fuzzy) {
+                int minDist = -1;
+
+                for (Map.Entry<String, Command> entry : knownCommands.entrySet()) {
+                    if (entry.getKey().charAt(0) != sentCommandLabel.charAt(0)) {
+                        continue;
+                    }
+
+                    int dist = StringUtil.getLevenshteinDistance(entry.getKey().toLowerCase(), sentCommandLabel);
+
+                    if ((dist < minDist || minDist == -1) && dist < 2) {
+                        minDist = dist;
+                        target = entry.getValue();
+                    }
+                }
+            }
+        }
+        if (target == null) {
+            return false;
+        }
+        try {
+            // Note: we don't return the result of target.execute as that's success / failure, we return handled (true) or not handled (false)
+            target.execute(sender, sentCommandLabel, Arrays_copyOfRange(args, 1, args.length));
+        } catch (CommandException ex) {
+            throw ex;
+        } catch (Throwable ex) {
+            throw new CommandException("Unhandled exception executing '" + commandLine + "' in " + target, ex);
+        }
+
+        // return true as command was handled
+        return true;
     }
 
     /**
