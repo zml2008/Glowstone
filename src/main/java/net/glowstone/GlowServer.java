@@ -156,11 +156,6 @@ public final class GlowServer implements Server {
      * The command map of this server.
      */
     private final GlowCommandMap commandMap = new GlowCommandMap(this);
-    
-    /**
-     * The command map for commands built-in to Glowstone.
-     */
-    private final GlowCommandMap builtinCommandMap = new GlowCommandMap(this);
 
     /**
      * The plugin manager of this server.
@@ -421,20 +416,22 @@ public final class GlowServer implements Server {
 
         // Register these first so they're usable while the worlds are loading
         GlowCommandMap.initGlowPermissions(this);
-        builtinCommandMap.register(new MeCommand(this));
-        builtinCommandMap.register(new ColorCommand(this));
-        builtinCommandMap.register(new KickCommand(this));
-        builtinCommandMap.register(new ListCommand(this));
-        builtinCommandMap.register(new TimeCommand(this));
-        builtinCommandMap.register(new WhitelistCommand(this));
-        builtinCommandMap.register(new BanCommand(this));
-        builtinCommandMap.register(new GameModeCommand(this));
-        builtinCommandMap.register(new OpCommand(this));
-        builtinCommandMap.register(new DeopCommand(this));
-        builtinCommandMap.register(new StopCommand(this));
-        builtinCommandMap.register(new SaveCommand(this));
-        builtinCommandMap.register(new SayCommand(this));
-        builtinCommandMap.register(new HelpCommand(this, builtinCommandMap.getKnownCommands()));
+        commandMap.register(new MeCommand(this));
+        commandMap.register(new ColorCommand(this));
+        commandMap.register(new KickCommand(this));
+        commandMap.register(new ListCommand(this));
+        commandMap.register(new TimeCommand(this));
+        commandMap.register(new WhitelistCommand(this));
+        commandMap.register(new BanCommand(this));
+        commandMap.register(new GameModeCommand(this));
+        commandMap.register(new OpCommand(this));
+        commandMap.register(new DeopCommand(this));
+        commandMap.register(new StopCommand(this));
+        commandMap.register(new SaveCommand(this));
+        commandMap.register(new SayCommand(this));
+        commandMap.removeAllOfType(ReloadCommand.class);
+        commandMap.register(new ReloadCommand(this));
+        commandMap.register(new HelpCommand(this, commandMap.getKnownCommands(false)));
 
         enablePlugins(PluginLoadOrder.STARTUP);
 
@@ -489,7 +486,7 @@ public final class GlowServer implements Server {
      */
     private void loadPlugins() {
         // clear the map
-        commandMap.clearCommands();
+        commandMap.removeAllOfType(PluginCommand.class);
             
         File folder = new File(config.getString("server.folders.plugins", "plugins"));
         folder.mkdirs();
@@ -518,7 +515,6 @@ public final class GlowServer implements Server {
         Plugin[] plugins = pluginManager.getPlugins();
         for (Plugin plugin : plugins) {
             if (!plugin.isEnabled() && plugin.getDescription().getLoad() == type) {
-
                 List<Permission> perms = plugin.getDescription().getPermissions();
                 for (Permission perm : perms) {
                     try {
@@ -544,7 +540,7 @@ public final class GlowServer implements Server {
     public void reload() {
         try {
             // Reload relevant configuration
-            config.load(configFile);
+            loadConfiguration();
             opsList.load();
             whitelist.load();
             
@@ -555,14 +551,11 @@ public final class GlowServer implements Server {
             loadPlugins();
             DefaultPermissions.registerCorePermissions();
             GlowCommandMap.initGlowPermissions(this);
-            builtinCommandMap.registerAllPermissions();
+            commandMap.registerAllPermissions();
             enablePlugins(PluginLoadOrder.STARTUP);
             enablePlugins(PluginLoadOrder.POSTWORLD);
             commandMap.registerServerAliases();
             consoleManager.refreshCommands();
-
-            storeQueue.reset();
-
         }
         catch (Exception ex) {
             logger.log(Level.SEVERE, "Uncaught error while reloading: {0}", ex.getMessage());
@@ -668,8 +661,7 @@ public final class GlowServer implements Server {
      * @return A list of all commands at the time.
      */
     protected String[] getAllCommands() {
-        HashSet<String> knownCommands = new HashSet<String>(builtinCommandMap.getKnownCommandNames());
-        knownCommands.addAll(commandMap.getKnownCommandNames());
+        HashSet<String> knownCommands = new HashSet<String>(commandMap.getKnownCommandNames());
         return knownCommands.toArray(new String[knownCommands.size()]);
     }
 
@@ -1035,20 +1027,11 @@ public final class GlowServer implements Server {
             if (commandMap.dispatch(sender, commandLine, false)) {
                 return true;
             }
-            
-            if (builtinCommandMap.dispatch(sender, commandLine, false)) {
-                return true;
-            }
 
             if (getFuzzyCommandMatching()) {
                 if (commandMap.dispatch(sender, commandLine, true)) {
                     return true;
                 }
-
-                if (builtinCommandMap.dispatch(sender, commandLine, true)) {
-                return true;
-            }
-
             }
             
             return false;
@@ -1110,6 +1093,11 @@ public final class GlowServer implements Server {
             aliases.put(key, cmdAliases.toArray(new String[cmdAliases.size()]));
         }
         return aliases;
+    }
+
+    public void reloadCommandAliases() {
+        commandMap.removeAllOfType(MultipleCommandAlias.class);
+        commandMap.registerServerAliases();
     }
 
     public int getSpawnRadius() {

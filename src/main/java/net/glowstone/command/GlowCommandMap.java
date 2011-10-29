@@ -36,12 +36,17 @@ public class GlowCommandMap extends SimpleCommandMap {
         return knownCommands.keySet();
     }
 
-    public Collection<Command> getKnownCommands() {
-        return knownCommands.values();
+    public Collection<Command> getKnownCommands(boolean includeAliases) {
+        if (includeAliases) {
+            return knownCommands.values();
+        } else {
+            return new HashSet<Command>(knownCommands.values());
+        }
     }
 
     /**
      * {@inheritDoc}
+     * This is an additional method to allow fuzzy command matching.
      */
     public boolean dispatch(CommandSender sender, String commandLine, boolean fuzzy) throws CommandException {
         String[] args = commandLine.split(" ");
@@ -84,6 +89,64 @@ public class GlowCommandMap extends SimpleCommandMap {
 
         // return true as command was handled
         return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean register(String label, String fallbackPrefix, Command command) {
+        boolean registeredPassedLabel = register(label, fallbackPrefix, command, false);
+
+        Iterator iterator = command.getAliases().iterator();
+        while (iterator.hasNext()) {
+            if (!register((String) iterator.next(), fallbackPrefix, command, true)) {
+                iterator.remove();
+            }
+        }
+
+        // Register to us so further updates of the commands label and aliases are postponed until its reregistered
+        command.register(this);
+
+        return registeredPassedLabel;
+    }
+
+    /**
+     * {@inheritDoc}
+     * This is overridden so that command aliases override Glowstone commands
+     */
+    private synchronized boolean register(String label, String fallbackPrefix, Command command, boolean isAlias) {
+        String lowerLabel = label.trim().toLowerCase();
+        if (isAlias && getIgnoringVanilla(lowerLabel) != null) {
+            // Request is for an alias and it conflicts with a existing command or previous alias ignore it
+            // Note: This will mean it gets removed from the commands list of active aliases
+            return false;
+        }
+
+        String lowerPrefix = fallbackPrefix.trim().toLowerCase();
+        boolean registerdPassedLabel = true;
+
+        // If the command exists but is an alias we overwrite it, otherwise we rename it based on the fallbackPrefix
+        while (getIgnoringVanilla(lowerLabel) != null && !aliases.contains(lowerLabel)) {
+            lowerLabel = lowerPrefix + ":" + lowerLabel;
+            registerdPassedLabel = false;
+        }
+
+        if (isAlias) {
+            aliases.add(lowerLabel);
+        } else {
+            // Ensure lowerLabel isn't listed as a alias anymore and update the commands registered name
+            aliases.remove(lowerLabel);
+            command.setLabel(lowerLabel);
+        }
+        knownCommands.put(lowerLabel, command);
+
+        return registerdPassedLabel;
+    }
+
+    public Command getIgnoringVanilla(String label) {
+        Command cmd = knownCommands.get(label);
+        if (cmd instanceof GlowCommand) return null;
+        return cmd;
     }
 
     /**
@@ -159,5 +222,25 @@ public class GlowCommandMap extends SimpleCommandMap {
         }
         return perms;
     }
-    
+
+    public void removeAllOfType(Class<? extends Command> clazz) {
+        List<String> toRemove = new ArrayList<String>();
+        for (Iterator<Command> i = knownCommands.values().iterator(); i.hasNext();) {
+            Command cmd = i.next();
+            if (clazz.isAssignableFrom(cmd.getClass())) {
+                i.remove();
+                for (String alias : cmd.getAliases()) {
+                    Command aliasCmd = knownCommands.get(alias);
+                    if (cmd.equals(aliasCmd)) {
+                        aliases.remove(alias);
+                        toRemove.add(alias);
+                    }
+                }
+            }
+        }
+        for (String string : toRemove) {
+            knownCommands.remove(string);
+        }
+    }
+
 }
