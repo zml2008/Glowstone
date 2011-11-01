@@ -2,21 +2,25 @@ package net.glowstone.entity;
 
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Level;
 
-import org.bukkit.Achievement;
-import org.bukkit.ChatColor;
-import org.bukkit.Effect;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.Statistic;
-import org.bukkit.Instrument;
-import org.bukkit.Note;
+import net.glowstone.GlowOfflinePlayer;
+import net.glowstone.block.GlowBlockState;
+import net.glowstone.io.StorageOperation;
+import net.glowstone.msg.*;
+import net.glowstone.util.Position;
+import org.bukkit.*;
+import org.bukkit.configuration.serialization.DelegateDeserialization;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.event.player.PlayerChatEvent;
 
@@ -30,18 +34,19 @@ import org.getspout.spoutapi.player.SpoutPlayer;
 import net.glowstone.EventFactory;
 import net.glowstone.GlowChunk;
 import net.glowstone.GlowWorld;
-import net.glowstone.TextWrapper;
 import net.glowstone.inventory.GlowInventory;
 import net.glowstone.inventory.GlowPlayerInventory;
 import net.glowstone.inventory.InventoryViewer;
 import net.glowstone.util.Parameter;
-import net.glowstone.msg.*;
+import net.glowstone.util.TextWrapper;
 import net.glowstone.net.Session;
+import org.bukkit.map.MapView;
 
 /**
  * Represents an in-game player.
  * @author Graham Edgecombe
  */
+@DelegateDeserialization(GlowOfflinePlayer.class)
 public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPlayer, InventoryViewer {
 
     /**
@@ -53,6 +58,26 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
      * This player's session.
      */
     private final Session session;
+    
+    /**
+     * Cumulative amount of experience points the player has collected.
+     */
+    private int experience = 0;
+    
+    /**
+     * The current level (or skill point amount) of the player.
+     */
+    private int level = 0;
+    
+    /**
+     * The player's current exhaustion level.
+     */
+    private float exhaustion = 0;
+    
+    /**
+     * The player's current saturation level.
+     */
+    private float saturation = 0;
     
     /**
      * This player's current time offset.
@@ -95,6 +120,26 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     private boolean sneaking = false;
 
     /**
+     * The human entity's current food level
+     */
+    private int food = 20;
+
+    /**
+     * Whether to use the display name when sending spawn messages to 
+     */
+    private boolean dispNameAsEntityName = false;
+
+    /**
+     * The bed spawn location of a player
+     */
+    private Location bedSpawn;
+
+    /**
+     * The name a player has in the player list
+     */
+    private String playerListName;
+
+    /**
      * Creates a new player and adds it to the world.
      * @param session The player's session.
      * @param name The player's name.
@@ -102,13 +147,19 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     public GlowPlayer(Session session, String name) {
         super(session.getServer(), (GlowWorld) session.getServer().getWorlds().get(0), name);
         this.session = session;
-
+        health = 20;
+        if (session.getState() != Session.State.GAME) {
+            session.send(new IdentificationMessage(getEntityId(), "", world.getSeed(), getGameMode().getValue(), world.getEnvironment().getId(), 1, world.getMaxHeight(), session.getServer().getMaxPlayers()));
+        }
         streamBlocks(); // stream the initial set of blocks
         setCompassTarget(world.getSpawnLocation()); // set our compass target
-        teleport(world.getSpawnLocation()); // take us to spawn position
-        session.send(new StateChangeMessage((byte)(getWorld().hasStorm() ? 1 : 2))); // send the world's weather
-        
+        session.send(new StateChangeMessage((byte)(getWorld().hasStorm() ? 1 : 2), (byte)0)); // send the world's weather
+
         getInventory().addViewer(this);
+        getInventory().getCraftingInventory().addViewer(this);
+
+        loadData();
+        saveData();
     }
     
     // -- Various internal mechanisms
@@ -119,7 +170,9 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
      */
     @Override
     public void remove() {
+        saveData();
         getInventory().removeViewer(this);
+        getInventory().getCraftingInventory().removeViewer(this);
         super.remove();
     }
 
@@ -163,19 +216,40 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
      */
     private void streamBlocks() {
         Set<GlowChunk.Key> previousChunks = new HashSet<GlowChunk.Key>(knownChunks);
+        ArrayList<GlowChunk.Key> newChunks = new ArrayList<GlowChunk.Key>();
 
         int centralX = ((int) location.getX()) >> 4;
         int centralZ = ((int) location.getZ()) >> 4;
         
-        for (int x = (centralX - GlowChunk.VISIBLE_RADIUS); x <= (centralX + GlowChunk.VISIBLE_RADIUS); x++) {
-            for (int z = (centralZ - GlowChunk.VISIBLE_RADIUS); z <= (centralZ + GlowChunk.VISIBLE_RADIUS); z++) {
+        int radius = server.getViewDistance();
+        for (int x = (centralX - radius); x <= (centralX + radius); x++) {
+            for (int z = (centralZ - radius); z <= (centralZ + radius); z++) {
                 GlowChunk.Key key = new GlowChunk.Key(x, z);
                 if (!knownChunks.contains(key)) {
                     knownChunks.add(key);
-                    session.send(new LoadChunkMessage(x, z, true));
-                    session.send(world.getChunkAt(x, z).toMessage());
+                    newChunks.add(key);
                 }
                 previousChunks.remove(key);
+            }
+        }
+        
+        Collections.sort(newChunks, new Comparator<GlowChunk.Key>() {
+            public int compare(GlowChunk.Key a, GlowChunk.Key b) {
+                double dx = 16 * a.getX() + 8 - location.getX();
+                double dz = 16 * a.getZ() + 8 - location.getZ();
+                double da = dx * dx + dz * dz;
+                dx = 16 * b.getX() + 8 - location.getX();
+                dz = 16 * b.getZ() + 8 - location.getZ();
+                double db = dx * dx + dz * dz;
+                return Double.compare(da, db);
+            }
+        });
+        
+        for (GlowChunk.Key key : newChunks) {
+            session.send(new LoadChunkMessage(key.getX(), key.getZ(), true));
+            session.send(world.getChunkAt(key.getX(), key.getZ()).toMessage());
+            for (GlowBlockState state : world.getChunkAt(key.getX(), key.getZ()).getTileEntities()) {
+                state.update(this);
             }
         }
 
@@ -216,7 +290,31 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     public boolean isOnline() {
         return true;
     }
-    
+
+    public boolean isBanned() {
+        return server.getBanManager().isBanned(getName());
+    }
+
+    public void setBanned(boolean banned) {
+        server.getBanManager().setBanned(getName(), banned);
+    }
+
+    public boolean isWhitelisted() {
+        return !server.hasWhitelist() || server.getWhitelist().contains(getName());
+    }
+
+    public void setWhitelisted(boolean value) {
+        if (value) {
+            server.getWhitelist().add(getName());
+        } else {
+            server.getWhitelist().remove(getName());
+        }
+    }
+
+    public Player getPlayer() {
+        return this;
+    }
+
     public InetSocketAddress getAddress() {
         return session.getAddress();
     }
@@ -233,7 +331,7 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         } else {
             getServer().getOpsList().remove(getName());
         }
-        this.recalculatePermissions();
+        permissions.recalculatePermissions();
     }
     
     // -- Malleable properties
@@ -244,6 +342,24 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
 
     public void setDisplayName(String name) {
         displayName = name;
+    }
+
+    public String getPlayerListName() {
+        return playerListName == null || "".equals(playerListName) ? getName() : playerListName;
+    }
+
+    public void setPlayerListName(String name) {
+        if (name.length() > 15) throw new IllegalArgumentException("The given name was " + name.length() + " chars long, longer than the maximum of 16");
+        for (Player player : server.getOnlinePlayers()) {
+            if (player.getPlayerListName().equals(getPlayerListName())) throw new IllegalArgumentException("The name given, " + name + ", is already used by " + player.getName() + ".");
+        }
+        Message removeMessage = new UserListItemMessage(getPlayerListName(), false, (short)0);
+        playerListName = name;
+        Message reAddMessage = new UserListItemMessage(getPlayerListName(), true, (short)0);
+        for (Player player : server.getOnlinePlayers()) {
+            ((GlowPlayer) player).getSession().send(removeMessage);
+            ((GlowPlayer) player).getSession().send(reAddMessage);
+        }
     }
 
     public Location getCompassTarget() {
@@ -274,12 +390,78 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
     }
 
+    public boolean isSprinting() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void setSprinting(boolean sprinting) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
     public boolean isSleepingIgnored() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setSleepingIgnored(boolean isSleeping) {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void setGameMode(GameMode mode) {
+        boolean changed = getGameMode() != mode;
+        super.setGameMode(mode);
+        if (changed) session.send(new StateChangeMessage((byte) 3, (byte) mode.getValue()));
+    }
+
+    public int getExperience() {
+        return experience % ((getLevel() + 1) * 10);
+    }
+
+    public void setExperience(int exp) {
+        setTotalExperience(experience - getExperience() + exp);
+    }
+
+    public int getLevel() {
+        return level;
+    }
+
+    public void setLevel(int level) {
+        int calcExperience = getExperience();
+        this.level = level;
+        for (int i = 0; i <= level; i++) {
+            calcExperience += (level + 1) * 10;
+        }
+        setExperience(calcExperience);
+        session.send(createExperienceMessage());
+    }
+
+    public int getTotalExperience() {
+        return experience;
+    }
+
+    public void setTotalExperience(int exp) {
+        int calcExperience = exp;
+        this.experience = exp;
+        level = 0;
+        while ((calcExperience -= (getLevel() + 1) * 10) > 0) ++level;
+        session.send(createExperienceMessage());
+    }
+
+    public float getExhaustion() {
+        return exhaustion;
+    }
+
+    public void setExhaustion(float value) {
+        exhaustion = value;
+    }
+
+    public float getSaturation() {
+        return saturation;
+    }
+
+    public void setSaturation(float value) {
+        saturation = value;
+        session.send(createHealthMessage());
     }
     
     // -- Actions
@@ -291,7 +473,13 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
      */
     @Override
     public boolean teleport(Location location) {
+        if (this.location != null && this.location.getWorld() != null) {
+            PlayerTeleportEvent event = EventFactory.onPlayerTeleport(this, getLocation(), location);
+            if (event.isCancelled()) return false;
+            location = event.getTo();
+        }
         if (location.getWorld() != world) {
+            GlowWorld oldWorld = world;
             world.getEntityManager().deallocate(this);
             
             world = (GlowWorld) location.getWorld();
@@ -302,15 +490,15 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
             }
             knownChunks.clear();
             
-            session.send(new RespawnMessage((byte) world.getEnvironment().getId()));
-            
+            session.send(new RespawnMessage((byte) world.getEnvironment().getId(), (byte)1, (byte) getGameMode().getValue(), (short) world.getMaxHeight(), world.getSeed()));
             streamBlocks(); // stream blocks
             
             setCompassTarget(world.getSpawnLocation()); // set our compass target
             this.session.send(new PositionRotationMessage(location.getX(), location.getY() + EYE_HEIGHT + 0.01, location.getZ(), location.getY(), (float) location.getYaw(), (float) location.getPitch(), true));
             this.location = location; // take us to spawn position
-            session.send(new StateChangeMessage((byte)(getWorld().hasStorm() ? 1 : 2))); // send the world's weather
+            session.send(new StateChangeMessage((byte)(getWorld().hasStorm() ? 1 : 2), (byte)0)); // send the world's weather
             reset();
+            EventFactory.onPlayerChangedWorld(this, oldWorld);
         } else {
             this.session.send(new PositionRotationMessage(location.getX(), location.getY() + EYE_HEIGHT + 0.01, location.getZ(), location.getY(), (float) location.getYaw(), (float) location.getPitch(), true));
             this.location = location;
@@ -379,11 +567,47 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     }
 
     public void saveData() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        saveData(true);
+    }
+
+    public void saveData(boolean async) {
+        final GlowWorld dataWorld = (GlowWorld) server.getWorlds().get(0);
+        if (async) {
+            final GlowPlayer player = this;
+            server.getStorageQueue().queue(new StorageOperation() {
+                @Override
+                public boolean isParallel() {
+                    return true;
+                }
+
+                @Override
+                public String getGroup() {
+                    return getName() + "_" + getWorld().getName();
+                }
+
+                @Override
+                public boolean queueMultiple() {
+                    return true;
+                }
+
+                @Override
+                public String getOperation() {
+                    return "player-data-save";
+                }
+
+                public void run() {
+                    dataWorld.getMetadataService().writePlayerData(player);
+                }
+            });
+        } else {
+            dataWorld.getMetadataService().writePlayerData(this);
+        }
     }
 
     public void loadData() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        
+        GlowWorld dataWorld = (GlowWorld)server.getWorlds().get(0);
+        dataWorld.getMetadataService().readPlayerData(this);
     }
     
     // -- Data transmission
@@ -461,7 +685,7 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     // -- Inventory
 
     public void updateInventory() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        getInventory().setContents(getInventory().getContents());
     }
     
     /**
@@ -517,14 +741,12 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
                     }
                 }
             }
-            
-            slot = GlowPlayerInventory.inventorySlotToNetwork(slot);
         }
         
         if (item == null) {
-            session.send(new SetWindowSlotMessage(inventory.getId(), slot));
+            session.send(new SetWindowSlotMessage(inventory.getId(), inventory.getNetworkSlot(slot)));
         } else {
-            session.send(new SetWindowSlotMessage(inventory.getId(), slot, item.getTypeId(), item.getAmount(), item.getDurability()));
+            session.send(new SetWindowSlotMessage(inventory.getId(), inventory.getNetworkSlot(slot), item.getTypeId(), item.getAmount(), item.getDurability()));
         }
     }
     
@@ -861,4 +1083,80 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
     }
 
+    /**
+     * Render a map and send it to the player in its entirety. This may be used
+     * when streaming the map in the normal manner is not desirbale.
+     * 
+     * @param map The map to be sent
+     */
+    public void sendMap(MapView map) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    @Override
+    public void setHealth(int health) {
+        super.setHealth(health);
+        session.send(createHealthMessage());
+    }
+
+    public int getMaxHealth() {
+        return 20;
+    }
+
+    @Override
+    public void addEntityEffect(ActiveEntityEffect effect) {
+        super.addEntityEffect(effect);
+        EntityEffectMessage msg = new EntityEffectMessage(getEntityId(), effect.getEffect().getId(), effect.getAmplitude(), effect.getDuration());
+        for (Player player : server.getOnlinePlayers()) {
+            ((GlowPlayer) player).getSession().send(msg);
+        }
+    }
+
+    @Override
+    public void removeEntityEffect(ActiveEntityEffect effect) {
+        super.removeEntityEffect(effect);
+        EntityRemoveEffectMessage msg = new EntityRemoveEffectMessage(getEntityId(), effect.getEffect().getId());
+        for (Player player : server.getOnlinePlayers()) {
+            ((GlowPlayer) player).getSession().send(msg);
+        }
+    }
+
+    @Override
+    public Message createSpawnMessage() {
+        int x = Position.getIntX(location);
+        int y = Position.getIntY(location);
+        int z = Position.getIntZ(location);
+        int yaw = Position.getIntYaw(location);
+        int pitch = Position.getIntPitch(location);
+        return new SpawnPlayerMessage(id, dispNameAsEntityName ? displayName : getName(), x, y, z, yaw, pitch, 0);
+    }
+
+    public int getFoodLevel() {
+        return food;
+    }
+
+    public void setFoodLevel(int food) {
+        this.food = Math.min(food, 20);
+        session.send(createHealthMessage());
+    }
+
+    public Message createHealthMessage() {
+        return new HealthMessage(getHealth(), getFoodLevel(), getSaturation());
+    }
+    
+    public Message createExperienceMessage() {
+        return new ExperienceMessage((byte)getExperience(), (byte)getLevel(), (short)getTotalExperience());
+    }
+    
+    public void addExperience(int exp) {
+        experience += exp;
+        level += (experience / 200);
+        experience %= 200;
+    }
+
+    public Map<String, Object> serialize() {
+        Map<String, Object> ret = new HashMap<String, Object>();
+        ret.put("name", getName());
+        return ret;
+    }
 }

@@ -59,7 +59,7 @@ public class GlowBlock implements Block, SpoutBlock {
 
     public GlowBlockState getState() {
         if (chunk.getEntity(x & 0xf, y, z & 0xf) != null) {
-            return chunk.getEntity(x, y, z).shallowClone();
+            return chunk.getEntity(x & 0xf, y, z & 0xf).shallowClone();
         }
         return new GlowBlockState(this);
     }
@@ -104,6 +104,10 @@ public class GlowBlock implements Block, SpoutBlock {
     public GlowBlock getRelative(BlockFace face) {
         return getRelative(face.getModX(), face.getModY(), face.getModZ());
     }
+
+    public Block getRelative(BlockFace face, int distance) {
+        return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
+    }
     
     // type and typeid getters/setters
 
@@ -140,11 +144,11 @@ public class GlowBlock implements Block, SpoutBlock {
     }
 
     public boolean isEmpty() {
-        return getType() == Material.AIR;
+        return getTypeId() == BlockID.AIR;
     }
 
     public boolean isLiquid() {
-        return getType() == Material.WATER || getType() == Material.STATIONARY_WATER || getType() == Material.LAVA || getType() == Material.STATIONARY_LAVA;
+        return getTypeId() == BlockID.WATER || getTypeId() == BlockID.STATIONARY_WATER || getTypeId() == BlockID.LAVA || getTypeId() == BlockID.STATIONARY_LAVA;
     }
 
     // data and light getters/setters
@@ -194,10 +198,6 @@ public class GlowBlock implements Block, SpoutBlock {
     }
 
     public int getBlockPower() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public Block getRelative(BlockFace face, int distance) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

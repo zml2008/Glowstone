@@ -3,54 +3,56 @@ package net.glowstone;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.lang.reflect.Field;
+import java.io.InputStream;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Random;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.bukkit.Bukkit;
-import org.bukkit.command.Command;
-import org.bukkit.command.PluginCommandYamlParser;
-import org.bukkit.command.SimpleCommandMap;
-import org.bukkit.Server;
-import org.bukkit.World;
+import org.bukkit.*;
+import org.bukkit.command.*;
 import org.bukkit.World.Environment;
-import org.bukkit.command.CommandException;
-import org.bukkit.command.CommandSender;
-import org.bukkit.command.PluginCommand;
+import org.bukkit.configuration.ConfigurationSection;
+import org.bukkit.configuration.InvalidConfigurationException;
+import org.bukkit.configuration.serialization.ConfigurationSerialization;
 import org.bukkit.entity.Player;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.Recipe;
+import org.bukkit.permissions.Permissible;
 import org.bukkit.permissions.Permission;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.SimplePluginManager;
 import org.bukkit.plugin.SimpleServicesManager;
 import org.bukkit.plugin.java.JavaPluginLoader;
 import org.bukkit.plugin.PluginLoadOrder;
-import org.bukkit.util.config.Configuration;
+import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.util.permissions.DefaultPermissions;
 
 import org.getspout.spoutapi.SpoutManager;
 
 import net.glowstone.command.*;
-import net.glowstone.io.McRegionChunkIoService;
+import net.glowstone.io.StorageQueue;
+import net.glowstone.io.mcregion.McRegionWorldStorageProvider;
 import net.glowstone.net.MinecraftPipelineFactory;
 import net.glowstone.net.Session;
 import net.glowstone.net.SessionRegistry;
 import net.glowstone.scheduler.GlowScheduler;
 import net.glowstone.util.PlayerListFile;
+import net.glowstone.util.bans.BanManager;
+import net.glowstone.util.bans.FlatFileBanManager;
 import net.glowstone.inventory.CraftingManager;
 import net.glowstone.spout.*;
+import net.glowstone.map.GlowMapView;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.ChannelFactory;
@@ -58,6 +60,7 @@ import org.jboss.netty.channel.ChannelPipelineFactory;
 import org.jboss.netty.channel.group.ChannelGroup;
 import org.jboss.netty.channel.group.DefaultChannelGroup;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
+import org.yaml.snakeyaml.error.YAMLException;
 
 /**
  * The core class of the Glowstone server.
@@ -74,11 +77,24 @@ public final class GlowServer implements Server {
      * The directory configurations are stored in
      */
     private static final File configDir = new File("config");
-            
+
+    /**
+     * The main configuration file
+     */
+    private static final File configFile = new File(configDir, "glowstone.yml");
+
     /**
      * The configuration the server uses.
      */
-    private static final Configuration config = new Configuration(new File(configDir, "glowstone.yml"));
+    private static YamlConfiguration config = new YamlConfiguration();
+
+    /**
+     * The protocol version supported by the server
+     */
+    public static final int PROTOCOL_VERSION = 17;
+
+
+    public static final StorageQueue storeQueue = new StorageQueue();
 
     /**
      * Creates a new server on TCP port 25565 and starts listening for
@@ -87,15 +103,19 @@ public final class GlowServer implements Server {
      */
     public static void main(String[] args) {
         try {
+            storeQueue.start();
+
             if (!configDir.exists() || !configDir.isDirectory())
                 configDir.mkdirs();
-            config.load();
-            
+            loadConfiguration();
+            config.options().indent(4);
+            ConfigurationSerialization.registerClass(GlowOfflinePlayer.class);
+
             int port = config.getInt("server.port", 25565);
-            
             GlowServer server = new GlowServer();
-            server.bind(new InetSocketAddress(port));
             server.start();
+            server.bind(new InetSocketAddress(port));
+            logger.info("Ready for connections.");
         } catch (Throwable t) {
             logger.log(Level.SEVERE, "Error during server startup.", t);
         }
@@ -131,17 +151,12 @@ public final class GlowServer implements Server {
      * The services manager of this server.
      */
     private final SimpleServicesManager servicesManager = new SimpleServicesManager();
-    
+
     /**
      * The command map of this server.
      */
-    private final SimpleCommandMap commandMap = new SimpleCommandMap(this);
-    
-    /**
-     * The command map for commands built-in to Glowstone.
-     */
-    private final SimpleCommandMap builtinCommandMap = new SimpleCommandMap(this);
-    
+    private final GlowCommandMap commandMap = new GlowCommandMap(this);
+
     /**
      * The plugin manager of this server.
      */
@@ -156,6 +171,16 @@ public final class GlowServer implements Server {
      * The list of OPs on the server.
      */
     private final PlayerListFile opsList = new PlayerListFile(new File(configDir, "ops.txt"));
+    
+    /**
+     * The list of players whitelisted on the server.
+     */
+    private final PlayerListFile whitelist = new PlayerListFile(new File(configDir, "whitelist.txt"));
+
+    /**
+     * The server's ban manager.
+     */
+    private BanManager banManager = new FlatFileBanManager(this);
 
     /**
      * The world this server is managing.
@@ -168,10 +193,24 @@ public final class GlowServer implements Server {
     private final GlowScheduler scheduler = new GlowScheduler(this);
 
     /**
+     * The server's default game mode
+     */
+    private GameMode defaultGameMode = GameMode.SURVIVAL;
+
+    /**
+     * Whether the server is shutting down
+     */
+    private boolean isShuttingDown = false;
+
+    /**
+     * Provides various config helper methods
+     */
+    private GlowConfiguration configurationManager = new GlowConfiguration(this);
+
+    /**
      * Creates a new server.
      */
     public GlowServer() {
-        logger.log(Level.INFO, "This server is running {0} version {1}", new Object[]{getName(), getVersion()});
         init();
     }
 
@@ -186,57 +225,53 @@ public final class GlowServer implements Server {
 
         ChannelPipelineFactory pipelineFactory = new MinecraftPipelineFactory(this);
         bootstrap.setPipelineFactory(pipelineFactory);
-        
-        if (config.getKeys().size() <= 1) {
+
+        // TODO: This needs a cleanup badly
+        config.options().copyDefaults(true);
+        InputStream stream = getClass().getClassLoader().getResourceAsStream("defaults/glowstone.yml");
+        if (stream == null) {
+            logger.severe("Error creating default config: Config not found in classpath");
+            return;
+        }
+        try {
+            config.setDefaults(YamlConfiguration.loadConfiguration(stream));
+        } finally {
+            try {
+                stream.close();
+            } catch (IOException e) {}
+        }
+        config.set("server.view-distance", GlowChunk.VISIBLE_RADIUS);
+
+        // If the configuration is empty, attempt to migrate non-Glowstone configs
+        if (config.getKeys(false).size() <= 1) {
             System.out.println("Generating default configuration config/glowstone.yml...");
 
-            // Server config
-            config.setProperty("server.port", 25565);
-            config.setProperty("server.world-name", "world");
-            config.setProperty("server.max-players", 0);
-            config.setProperty("server.spawn-radius", 16);
-            config.setProperty("server.online-mode", true);
-            config.setProperty("server.log-file", "logs/log-%D.txt");
-            config.setProperty("server.terminal-mode", "jline");
-
-            // Server folders config
-            config.setProperty("server.folders.plugins", "plugins");
-            config.setProperty("server.folders.update", "update");
-
-            // Database config
-            config.setProperty("database.driver", "org.sqlite.JDBC");
-            config.setProperty("database.url", "jdbc:sqlite:{DIR}{NAME}.db");
-            config.setProperty("database.username", "glowstone");
-            config.setProperty("database.password", "nether");
-            config.setProperty("database.isolation", "SERIALIZABLE");
-
-            // Autodetect any movable configuration
+            // bukkit.yml
             File bukkitYml = new File("bukkit.yml");
             if (bukkitYml.exists()) {
-                Configuration bukkit = new Configuration(bukkitYml);
-                bukkit.load();
+                YamlConfiguration bukkit = YamlConfiguration.loadConfiguration(bukkitYml);
                 String moved = "", separator = "";
 
-                if (bukkit.getNode("database") != null) {
-                    config.setProperty("database", bukkit.getNode("database").getAll());
+                if (bukkit.get("database") != null) {
+                    config.set("database", bukkit.getConfigurationSection("database"));
                     moved += separator + "database settings";
                     separator = ", ";
                 }
 
-                if (bukkit.getProperty("settings.spawn-radius") != null) {
-                    config.setProperty("server.spawn-radius", bukkit.getInt("settings.spawn-radius", 16));
+                if (bukkit.get("settings.spawn-radius") != null) {
+                    config.set("server.spawn-radius", bukkit.getInt("settings.spawn-radius", 16));
                     moved += separator + "spawn radius";
                     separator = ", ";
                 }
 
                 if (bukkit.getString("settings.update-folder") != null) {
-                    config.setProperty("server.folders.update", bukkit.getString("settings.update-folder"));
+                    config.set("server.folders.update", bukkit.getString("settings.update-folder"));
                     moved += separator + "update folder";
                     separator = ", ";
                 }
 
-                if (bukkit.getNode("worlds") != null) {
-                    config.setProperty("worlds", bukkit.getNode("worlds").getAll());
+                if (bukkit.get("worlds") != null) {
+                    config.set("worlds", bukkit.getConfigurationSection("worlds"));
                     moved += separator + "world generators";
                     separator = ", ";
                 }
@@ -248,6 +283,7 @@ public final class GlowServer implements Server {
                 }
             }
 
+            // server.properties
             File serverProps = new File("server.properties");
             if (serverProps.exists()) {
                 try {
@@ -257,7 +293,7 @@ public final class GlowServer implements Server {
 
                     if (properties.containsKey("level-name")) {
                         String world = properties.getProperty("level-name", "world");
-                        config.setProperty("server.world-name", world);
+                        config.set("server.world-name", world);
                         moved += separator + "world name";
                         separator = ", ";
                     }
@@ -265,7 +301,7 @@ public final class GlowServer implements Server {
                     if (properties.containsKey("online-mode")) {
                         String value = properties.getProperty("online-mode", "true");
                         boolean bool = value.equalsIgnoreCase("on") || value.equalsIgnoreCase("yes") || value.equalsIgnoreCase("true");
-                        config.setProperty("server.online-mode", bool);
+                        config.set("server.online-mode", bool);
                         moved += separator + "online mode";
                         separator = ", ";
                     }
@@ -274,7 +310,7 @@ public final class GlowServer implements Server {
                         String value = properties.getProperty("server-port", "25565");
                         try {
                             int port = Integer.parseInt(value);
-                            config.setProperty("server.port", port);
+                            config.set("server.port", port);
                             moved += separator + "port";
                             separator = ", ";
                         }
@@ -285,11 +321,30 @@ public final class GlowServer implements Server {
                         String value = properties.getProperty("max-players", "20");
                         try {
                             int players = Integer.parseInt(value);
-                            config.setProperty("server.max-players", players);
+                            config.set("server.max-players", players);
                             moved += separator + "max players";
                             separator = ", ";
                         }
-                        catch (NumberFormatException ex) {}
+                        catch (NumberFormatException e) {}
+                    }
+
+                    if (properties.containsKey("motd")) {
+                        String motd = properties.getProperty("motd", "Glowstone server");
+                        config.set("server.motd", motd);
+                        moved += separator + "MOTD";
+                        separator = ", ";
+                    }
+
+                    if (properties.containsKey("gamemode")) {
+                        String value = properties.getProperty("gamemode", "0");
+                        try {
+                            int mode = Integer.parseInt(value);
+                            GameMode gMode = GameMode.getByValue(mode);
+                            if (gMode == null) gMode = GameMode.SURVIVAL;
+                            config.set("server.def-game-mode", gMode.name());
+                            moved += separator + "default game mode";
+                            separator = ", ";
+                        } catch (NumberFormatException ex) {}
                     }
 
                     // TODO: move nether, view distance, monsters, etc when implemented
@@ -300,9 +355,41 @@ public final class GlowServer implements Server {
                 }
                 catch (IOException ex) {}
             }
-
-            config.save();
         }
+        saveConfiguration();
+    }
+
+    private static boolean loadConfiguration() {
+        try {
+            if (!configDir.exists() || !configDir.isDirectory()) {
+                configDir.mkdirs();
+            }
+            if (!configFile.exists()) {
+                configFile.createNewFile();
+            }
+            config.load(configFile);
+            return true;
+        } catch (IOException ex) {
+            logger.log(Level.SEVERE, "Cannot load " + configFile, ex);
+        } catch (InvalidConfigurationException ex) {
+            if (ex.getCause() instanceof YAMLException) {
+                logger.severe("Config file " + configFile + " isn't valid! " + ex.getCause());
+            } else if ((ex.getCause() == null) || (ex.getCause() instanceof ClassCastException)) {
+                logger.severe("Config file " + configFile + " isn't valid!");
+            } else {
+                logger.log(Level.SEVERE, "Cannot load " + configFile + ": " + ex.getCause().getClass(), ex);
+            }
+        }
+        return false;
+    }
+
+    private static boolean saveConfiguration() {
+        try {
+            config.save(configFile);
+        } catch (IOException ex) {
+            logger.log(Level.SEVERE, "Cannot save " + configFile, ex);
+        }
+        return false;
     }
 
     /**
@@ -318,53 +405,75 @@ public final class GlowServer implements Server {
      * Starts this server.
      */
     public void start() {
-        try {
-            config.load();
-        } catch (Exception ex) {
-            logger.warning("Failed to load glowstone.yml, using defaults");
-        }
+        // Config should have already loaded by this point, but to be safe...
+        loadConfiguration();
+        consoleManager.setupConsole();
         
+        // Load player lists
         opsList.load();
+        whitelist.load();
+        banManager.load();
 
+        // Start loading plugins
         loadPlugins();
-        enablePlugins(PluginLoadOrder.STARTUP);
-        createWorld(config.getString("server.world-name", "world"), Environment.NORMAL);
-        enablePlugins(PluginLoadOrder.POSTWORLD);
-        
-        List<Command> commands = Arrays.<Command>asList(
-                new MeCommand(this),
-                new OpCommand(this),
-                new DeopCommand(this),
-                new ColorCommand(this),
-                new KickCommand(this),
-                new ListCommand(this),
-                new TimeCommand(this),
-                new StopCommand(this));
-        builtinCommandMap.registerAll("#", commands);
-        builtinCommandMap.register("#", new HelpCommand(this, commands));
-        consoleManager.refreshCommands();
 
-        logger.info("Ready for connections.");
+        // Begin registering permissions
+        DefaultPermissions.registerCorePermissions();
+
+        // Register these first so they're usable while the worlds are loading
+        GlowCommandMap.initGlowPermissions(this);
+        commandMap.register(new MeCommand(this));
+        commandMap.register(new ColorCommand(this));
+        commandMap.register(new KickCommand(this));
+        commandMap.register(new ListCommand(this));
+        commandMap.register(new TimeCommand(this));
+        commandMap.register(new WhitelistCommand(this));
+        commandMap.register(new BanCommand(this));
+        commandMap.register(new GameModeCommand(this));
+        commandMap.register(new OpCommand(this));
+        commandMap.register(new DeopCommand(this));
+        commandMap.register(new StopCommand(this));
+        commandMap.register(new SaveCommand(this));
+        commandMap.register(new SayCommand(this));
+        commandMap.removeAllOfType(ReloadCommand.class);
+        commandMap.register(new ReloadCommand(this));
+        commandMap.register(new HelpCommand(this, commandMap.getKnownCommands(false)));
+
+        enablePlugins(PluginLoadOrder.STARTUP);
+
+        // Create worlds
+        createWorld(WorldCreator.name(config.getString("server.world-name", "world")).environment(Environment.NORMAL));
+        if (getAllowNether()) {
+            createWorld(WorldCreator.name(config.getString("server.world-name", "world") + "_nether").environment(Environment.NETHER));
+        }
+
+        // Finish loading plugins
+        enablePlugins(PluginLoadOrder.POSTWORLD);
+        commandMap.registerServerAliases();
+        consoleManager.refreshCommands();
     }
     
     /**
      * Stops this server.
      */
-    public void stop() {
+    public void shutdown() {
+        // This is so we don't run this twice (/stop and actual shutdown)
+        if (isShuttingDown) return;
+        isShuttingDown = true;
         logger.info("The server is shutting down...");
         
         // Stop scheduler and disable plugins
         scheduler.stop();
         pluginManager.clearPlugins();
-        
-        // Save worlds
-        for (World world : getWorlds()) {
-            world.save();
-        }
-        
+
         // Kick (and save) all players
         for (Player player : getOnlinePlayers()) {
             player.kickPlayer("Server shutting down.");
+        }
+        
+        // Save worlds
+        for (World world : getWorlds()) {
+            unloadWorld(world, true);
         }
         
         // Gracefully stop Netty
@@ -373,6 +482,8 @@ public final class GlowServer implements Server {
         
         // And finally kill the console
         consoleManager.stop();
+
+        storeQueue.end();
     }
     
     /**
@@ -380,8 +491,8 @@ public final class GlowServer implements Server {
      */
     private void loadPlugins() {
         // clear the map
-        commandMap.clearCommands();
-            
+        commandMap.removeAllOfType(PluginCommand.class);
+
         File folder = new File(config.getString("server.folders.plugins", "plugins"));
         folder.mkdirs();
         
@@ -409,12 +520,6 @@ public final class GlowServer implements Server {
         Plugin[] plugins = pluginManager.getPlugins();
         for (Plugin plugin : plugins) {
             if (!plugin.isEnabled() && plugin.getDescription().getLoad() == type) {
-                List<Command> pluginCommands = PluginCommandYamlParser.parse(plugin);
-
-                if (!pluginCommands.isEmpty()) {
-                    commandMap.registerAll(plugin.getDescription().getName(), pluginCommands);
-                }
-                
                 List<Permission> perms = plugin.getDescription().getPermissions();
                 for (Permission perm : perms) {
                     try {
@@ -439,20 +544,24 @@ public final class GlowServer implements Server {
      */
     public void reload() {
         try {
-            config.load();
+            // Reload relevant configuration
+            loadConfiguration();
             opsList.load();
+            whitelist.load();
             
             // resetAll various things
             craftingManager.resetRecipes();
             GlowSpoutManager.resetAll();
             
-            // load plugins
+            // Load plugins
             loadPlugins();
+            DefaultPermissions.registerCorePermissions();
+            GlowCommandMap.initGlowPermissions(this);
+            commandMap.registerAllPermissions();
             enablePlugins(PluginLoadOrder.STARTUP);
             enablePlugins(PluginLoadOrder.POSTWORLD);
+            commandMap.registerServerAliases();
             consoleManager.refreshCommands();
-            
-            // TODO: register aliases
         }
         catch (Exception ex) {
             logger.log(Level.SEVERE, "Uncaught error while reloading: {0}", ex.getMessage());
@@ -481,6 +590,41 @@ public final class GlowServer implements Server {
      */
     public PlayerListFile getOpsList() {
         return opsList;
+    }
+    
+    /**
+     * Returns the list of OPs on this server.
+     */
+    public PlayerListFile getWhitelist() {
+        return whitelist;
+    }
+
+    /**
+     * Returns the folder where configuration files are stored
+     */
+    public File getConfigDir() {
+        return configDir;
+    }
+
+    public Set<OfflinePlayer> getOperators() {
+        Set<OfflinePlayer> offlinePlayers = new HashSet<OfflinePlayer>();
+        for (String name : opsList.getContents()) {
+            offlinePlayers.add(getOfflinePlayer(name));
+        }
+        return offlinePlayers;
+    }
+
+    /**
+     * Returns the currently used ban manager for the server
+     */
+    public BanManager getBanManager() {
+        return banManager;
+    }
+
+    public void setBanManager(BanManager manager) {
+        this.banManager = manager;
+        manager.load();
+        logger.log(Level.INFO, "Using {0} for ban management", manager.getClass().getName());
     }
 
     /**
@@ -515,30 +659,16 @@ public final class GlowServer implements Server {
      * @return An ArrayList containing all loaded worlds.
      */
     public List<World> getWorlds() {
-        ArrayList<World> result = new ArrayList<World>();
-        for (GlowWorld world : worlds)
-            result.add(world);
-        return result;
+        return new ArrayList<World>(worlds);
     }
     
     /**
-     * Use reflection to get a list of available commands from the command map.
+     * Gets a list of available commands from the command map.
      * @return A list of all commands at the time.
      */
     protected String[] getAllCommands() {
-        // There's probably a better way of doing this.
-        try {
-            Class clazz = commandMap.getClass();
-            Field knownCommandsField = clazz.getDeclaredField("knownCommands");
-            knownCommandsField.setAccessible(true);
-            HashSet<String> knownCommands = new HashSet<String>(((Map<String, Command>) knownCommandsField.get(commandMap)).keySet());
-            knownCommands.addAll(((Map<String, Command>) knownCommandsField.get(builtinCommandMap)).keySet());
-            return knownCommands.toArray(new String[0]);
-        }
-        catch (Exception e) {
-            e.printStackTrace();
-            return new String[0];
-        }
+        HashSet<String> knownCommands = new HashSet<String>(commandMap.getKnownCommandNames());
+        return knownCommands.toArray(new String[knownCommands.size()]);
     }
 
     /**
@@ -558,7 +688,11 @@ public final class GlowServer implements Server {
     public String getVersion() {
         return getClass().getPackage().getImplementationVersion();
     }
-    
+
+    public String getBukkitVersion() {
+        return configurationManager.getBukkitVersion();
+    }
+
     /**
      * Gets a list of all currently logged in players
      *
@@ -570,7 +704,7 @@ public final class GlowServer implements Server {
             for (Player player : world.getPlayers())
                 result.add(player);
         }
-        return result.toArray(new Player[] {});
+        return result.toArray(new Player[result.size()]);
     }
     
     /**
@@ -579,7 +713,7 @@ public final class GlowServer implements Server {
      * @return The amount of players this server allows
      */
     public int getMaxPlayers() {
-        return config.getInt("server.max-players", 0);
+        return config.getInt("server.max-players", 50);
     }
 
     /**
@@ -618,6 +752,10 @@ public final class GlowServer implements Server {
         return Integer.toHexString(getServerName().hashCode());
     }
 
+    public ConsoleCommandSender getConsoleSender() {
+        return consoleManager.getSender();
+    }
+
     /**
      * Broadcast a message to all players.
      *
@@ -625,10 +763,7 @@ public final class GlowServer implements Server {
      * @return the number of players
      */
     public int broadcastMessage(String message) {
-        for (Player player : getOnlinePlayers()) {
-            player.sendMessage(message);
-        }
-        return getOnlinePlayers().length;
+        return broadcast(message, BROADCAST_CHANNEL_USERS);
     }
     
     /**
@@ -641,6 +776,10 @@ public final class GlowServer implements Server {
         return config.getString("server.folders.update", "update");
     }
     
+    public File getUpdateFolderFile() {
+        return new File(getUpdateFolder());
+    }
+    
     /**
      * Gets a player object by the given username
      *
@@ -650,6 +789,14 @@ public final class GlowServer implements Server {
      * @return Player if it was found, otherwise null
      */
     public Player getPlayer(String name) {
+        for (Player player : getOnlinePlayers()) {
+            if (player.getName().equalsIgnoreCase(name))
+                return player;
+        }
+        return null;
+    }
+
+    public Player getPlayerExact(String name) {
         for (Player player : getOnlinePlayers()) {
             if (player.getName().equalsIgnoreCase(name))
                 return player;
@@ -719,12 +866,11 @@ public final class GlowServer implements Server {
         }
         
         if (environment == Environment.NETHER) {
-            return new net.glowstone.generator.FlatNetherGenerator();
+            return new net.glowstone.generator.UndergroundGenerator();
         } else if (environment == Environment.SKYLANDS) {
-            // TODO: add skylands generator
-            return new net.glowstone.generator.FlatgrassGenerator();
+            return new net.glowstone.generator.CakeTownGenerator();
         } else {
-            return new net.glowstone.generator.FlatForestGenerator();
+            return new net.glowstone.generator.SurfaceGenerator();
         }
     }
 
@@ -737,8 +883,9 @@ public final class GlowServer implements Server {
      * @param environment Environment type of the world
      * @return Newly created or loaded World
      */
+    @Deprecated
     public GlowWorld createWorld(String name, Environment environment) {
-        return createWorld(name, environment, new Random().nextLong(), getGenerator(name, environment));
+        return createWorld(WorldCreator.name(name).environment(environment));
     }
 
     /**
@@ -751,8 +898,9 @@ public final class GlowServer implements Server {
      * @param seed Seed value to create the world with
      * @return Newly created or loaded World
      */
+    @Deprecated
     public GlowWorld createWorld(String name, Environment environment, long seed) {
-        return createWorld(name, environment, seed, getGenerator(name, environment));
+        return createWorld(WorldCreator.name(name).environment(environment).seed(seed));
     }
 
     /**
@@ -765,8 +913,9 @@ public final class GlowServer implements Server {
      * @param generator ChunkGenerator to use in the construction of the new world
      * @return Newly created or loaded World
      */
+    @Deprecated
     public GlowWorld createWorld(String name, Environment environment, ChunkGenerator generator) {
-        return createWorld(name, environment, new Random().nextLong(), generator);
+        return createWorld(WorldCreator.name(name).environment(environment).generator(generator));
     }
 
     /**
@@ -780,10 +929,32 @@ public final class GlowServer implements Server {
      * @param generator ChunkGenerator to use in the construction of the new world
      * @return Newly created or loaded World
      */
-    public GlowWorld createWorld(String name, Environment environment, long seed, ChunkGenerator generator) {
-        if (getWorld(name) != null) return getWorld(name);
-        GlowWorld world = new GlowWorld(this, name, environment, seed, new McRegionChunkIoService(new File(name)), generator);
-        if (world != null) worlds.add(world);
+    @Deprecated
+    public GlowWorld createWorld(String name, Environment environment, long seed, ChunkGenerator generator) {        
+        return createWorld(WorldCreator.name(name).environment(environment).seed(seed).generator(generator));
+    }
+    
+    /**
+     * Creates or loads a world with the given name using the specified options.
+     * <p>
+     * If the world is already loaded, it will just return the equivalent of
+     * getWorld(creator.name()).
+     *
+     * @param creator Options to use when creating the world
+     * @return Newly created or loaded world
+     */
+    public GlowWorld createWorld(WorldCreator creator) {
+        GlowWorld world = getWorld(creator.name());
+        if (world != null) {
+            return world;
+        }
+
+        if (creator.generator() == null) {
+            creator.generator(getGenerator(creator.name(), creator.environment()));
+        }
+
+        world = new GlowWorld(this, creator.name(), creator.environment(), creator.seed(), new McRegionWorldStorageProvider(new File(creator.name())), creator.generator());
+        worlds.add(world);
         return world;
     }
 
@@ -795,8 +966,9 @@ public final class GlowServer implements Server {
      * @return Whether the action was Successful
      */
     public boolean unloadWorld(String name, boolean save) {
-        if (getWorld(name) == null) return false;
-        return unloadWorld(getWorld(name), save);
+        GlowWorld world = getWorld(name);
+        if (world == null) return false;
+        return unloadWorld(world, save);
     }
 
     /**
@@ -807,14 +979,16 @@ public final class GlowServer implements Server {
      * @return Whether the action was Successful
      */
     public boolean unloadWorld(World world, boolean save) {
-        if (save) {
-            world.save();
-        }
         if (!(world instanceof GlowWorld)) {
             return false;
         }
+        if (save) {
+            ((GlowWorld) world).save(false);
+        }
         if (worlds.contains((GlowWorld) world)) {
             worlds.remove((GlowWorld) world);
+            ((GlowWorld) world).unload();
+            EventFactory.onWorldUnload((GlowWorld)world);
             return true;
         }
         return false;
@@ -855,18 +1029,20 @@ public final class GlowServer implements Server {
     /**
      * Dispatches a command on the server, and executes it if found.
      *
-     * @param cmdLine command + arguments. Example: "test abc 123"
+     * @param commandLine command + arguments. Example: "test abc 123"
      * @return targetFound returns false if no target is found.
      * @throws CommandException Thrown when the executor for the given command fails with an unhandled exception
      */
     public boolean dispatchCommand(CommandSender sender, String commandLine) {
         try {
-            if (commandMap.dispatch(sender, commandLine)) {
+            if (commandMap.dispatch(sender, commandLine, false)) {
                 return true;
             }
-            
-            if (builtinCommandMap.dispatch(sender, commandLine)) {
-                return true;
+
+            if (getFuzzyCommandMatching()) {
+                if (commandMap.dispatch(sender, commandLine, true)) {
+                    return true;
+                }
             }
             
             return false;
@@ -880,7 +1056,7 @@ public final class GlowServer implements Server {
     }
 
     /**
-     * Populates a given {@link ServerConfig} with values attributes to this server
+     * Populates a given {@link com.avaje.ebean.config.ServerConfig} with values attributes to this server
      *
      * @param dbConfig ServerConfig to populate
      */
@@ -918,7 +1094,21 @@ public final class GlowServer implements Server {
     }
 
     public Map<String, String[]> getCommandAliases() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        Map<String, String[]> aliases = new HashMap<String, String[]>();
+        ConfigurationSection section = config.getConfigurationSection("aliases");
+        if (section == null) return aliases;
+        List<String> cmdAliases = new ArrayList<String>();
+        for (String key : section.getKeys(false)) {
+            cmdAliases.clear();
+            cmdAliases.addAll(section.getStringList(key));
+            aliases.put(key, cmdAliases.toArray(new String[cmdAliases.size()]));
+        }
+        return aliases;
+    }
+
+    public void reloadCommandAliases() {
+        commandMap.removeAllOfType(MultipleCommandAlias.class);
+        commandMap.registerServerAliases();
     }
 
     public int getSpawnRadius() {
@@ -926,15 +1116,136 @@ public final class GlowServer implements Server {
     }
 
     public void setSpawnRadius(int value) {
-        config.setProperty("server.spawn-radius", value);
+        config.set("server.spawn-radius", value);
     }
 
     public boolean getOnlineMode() {
         return config.getBoolean("server.online-mode", true);
     }
+
+    public boolean getAllowNether() {
+        return config.getBoolean("server.allow-nether", true);
+    }
+
+    public boolean hasWhitelist() {
+        return config.getBoolean("server.whitelist", false);
+    }
+
+    public void setWhitelist(boolean enabled) {
+        config.set("server.whitelist", enabled);
+    }
+
+    public Set<OfflinePlayer> getWhitelistedPlayers() {
+        Set<OfflinePlayer> players = new HashSet<OfflinePlayer>();
+        for (String name : whitelist.getContents()) {
+            players.add(getOfflinePlayer(name));
+        }
+        return players;
+     }
+
+    public void reloadWhitelist() {
+        whitelist.load();
+    }
+
+    public boolean getAllowFlight() {
+        return config.getBoolean("server.allow-flight", false);
+    }
+
+    public int broadcast(String message, String permission) {
+        int count = 0;
+        for (Permissible permissible : getPluginManager().getPermissionSubscriptions(permission)) {
+            if (permissible instanceof CommandSender) {
+                ((CommandSender) permissible).sendMessage(message);
+            }
+        }
+        return count;
+    }
+
+    public OfflinePlayer getOfflinePlayer(String name) {
+        OfflinePlayer player = getPlayerExact(name);
+        if (player == null) {
+            player = new GlowOfflinePlayer(this, name);
+        }
+        return player;
+    }
+
+    public Set<String> getIPBans() {
+        return banManager.getIpBans();
+    }
+
+    public void banIP(String address) {
+       banManager.setIpBanned(address, true);
+    }
+
+    public void unbanIP(String address) {
+        banManager.setIpBanned(address, false);
+    }
+
+    public Set<OfflinePlayer> getBannedPlayers() {
+        Set<OfflinePlayer> bannedPlayers = new HashSet<OfflinePlayer>();
+        for (String name : banManager.getBans()) {
+            bannedPlayers.add(getOfflinePlayer(name));
+        }
+        return bannedPlayers;
+    }
+
+    public GameMode getDefaultGameMode() {
+        return defaultGameMode;
+    }
+
+    public void setDefaultGameMode(GameMode mode) {
+        GameMode oldMode = defaultGameMode;
+        defaultGameMode = mode;
+        for (Player player : getOnlinePlayers()) {
+            if (player.getGameMode() == oldMode) {
+                player.setGameMode(mode);
+            }
+        }
+        config.set("server.def-game-mode", mode.name());
+    }
+
+    public GameMode setDefaultGameMode(String mode) {
+        GameMode gameMode;
+        try {
+            gameMode = GameMode.valueOf(mode);
+        } catch (Throwable t) {
+            logger.severe("Unknown game mode specified. Defaulting to survival");
+            gameMode = GameMode.SURVIVAL;
+        }
+        setDefaultGameMode(gameMode);
+        return getDefaultGameMode();
+    }
+
+    public int getViewDistance() {
+        return config.getInt("server.view-distance", GlowChunk.VISIBLE_RADIUS);
+    }
     
     public String getLogFile() {
         return config.getString("server.log-file", "logs/log-%D.txt");
+    }
+
+    public GlowMapView getMap(short id) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public GlowMapView createMap(World world) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public String getMotd() {
+        return config.getString("server.motd", "Glowstone server");
+    }
+
+    public void setMotd(String motd) {
+        config.set("server.motd", motd);
+    }
+
+    public StorageQueue getStorageQueue() {
+        return storeQueue;
+    }
+
+    public boolean getFuzzyCommandMatching() {
+        return config.getBoolean("server.fuzzy-command-matching", false);
     }
      
 }

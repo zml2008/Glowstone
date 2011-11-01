@@ -54,6 +54,16 @@ public abstract class GlowEntity implements Entity {
      * An EntityDamageEvent representing the last damage cause on this entity.
      */
     private EntityDamageEvent lastDamageCause;
+
+    /**
+     * A flag indicting if the entity is on the ground
+     */
+    private boolean onGround = true;
+
+    /**
+     * A counter of how long this entity has existed
+     */
+    private int ticksLived = 0;
     /**
      * Creates an entity and adds it to the specified world.
      * @param world The world.
@@ -74,7 +84,20 @@ public abstract class GlowEntity implements Entity {
     public boolean isWithinDistance(GlowEntity other) {
         double dx = Math.abs(location.getX() - other.location.getX());
         double dz = Math.abs(location.getZ() - other.location.getZ());
-        return other.getWorld() == getWorld() && dx <= (GlowChunk.VISIBLE_RADIUS * GlowChunk.WIDTH) && dz <= (GlowChunk.VISIBLE_RADIUS * GlowChunk.HEIGHT);
+        return other.getWorld() == getWorld() && dx <= (server.getViewDistance() * GlowChunk.WIDTH) && dz <= (server.getViewDistance() * GlowChunk.HEIGHT);
+    }
+
+    /**
+     * Checks if this entity is within the {@link GlowChunk#VISIBLE_RADIUS} of
+     * a location.
+     * @param loc The location.
+     * @return {@code true} if the entities can see each other, {@code false} if
+     * not.
+     */
+    public boolean isWithinDistance(Location loc) {
+        double dx = Math.abs(location.getX() - loc.getX());
+        double dz = Math.abs(location.getZ() - loc.getZ());
+        return loc.getWorld() == getWorld() && dx <= (GlowChunk.VISIBLE_RADIUS * GlowChunk.WIDTH) && dz <= (GlowChunk.VISIBLE_RADIUS * GlowChunk.HEIGHT);
     }
 
     /**
@@ -86,7 +109,7 @@ public abstract class GlowEntity implements Entity {
     }
 
     /**
-     * Gets the {@link Server} that contains this Entity
+     * Gets the {@link org.bukkit.Server} that contains this Entity
      *
      * @return Server instance running this Entity
      */
@@ -124,7 +147,7 @@ public abstract class GlowEntity implements Entity {
      * periodic functionality e.g. mob AI.
      */
     public void pulse() {
-
+        ticksLived++;
     }
 
     /**
@@ -152,8 +175,8 @@ public abstract class GlowEntity implements Entity {
     }
 
     /**
-     * Sets this entity's position.
-     * @param position The new position.
+     * Sets this entity's location.
+     * @param location The new location.
      */
     public void setRawLocation(Location location) {
         this.location = location;
@@ -251,6 +274,22 @@ public abstract class GlowEntity implements Entity {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    public int getRemainingAir() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void setRemainingAir(int ticks) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public int getMaximumAir() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void setMaximumAir(int ticks) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
     public Entity getPassenger() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
@@ -285,6 +324,21 @@ public abstract class GlowEntity implements Entity {
 
     public UUID getUniqueId() {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public int getTicksLived() {
+        return ticksLived;
+    }
+
+    public void setTicksLived(int value) {
+        this.ticksLived = value;
+    }
+
+    public boolean isOnGround() {
+        return onGround;
+    }
+    public void setOnGround(boolean onGround) {
+        this.onGround = onGround;
     }
 
 }

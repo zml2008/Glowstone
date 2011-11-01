@@ -1,5 +1,6 @@
-package net.glowstone.entity;
+package net.glowstone.entity.objects;
 
+import net.glowstone.entity.GlowEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.entity.Item;
 
@@ -10,7 +11,7 @@ import net.glowstone.GlowWorld;
 import net.glowstone.GlowServer;
 
 /**
- * Represents an item that is also an {@link GlowEntity} within the world.
+ * Represents an item that is also an {@link net.glowstone.entity.GlowEntity} within the world.
  * @author Graham Edgecombe
  */
 public final class GlowItem extends GlowEntity implements Item {
@@ -19,6 +20,11 @@ public final class GlowItem extends GlowEntity implements Item {
      * The item.
      */
     private ItemStack item;
+    
+    /**
+     * The remaining delay until this item may be picked up.
+     */
+    private int pickupDelay;
 
     /**
      * Creates a new item entity.
@@ -28,6 +34,7 @@ public final class GlowItem extends GlowEntity implements Item {
     public GlowItem(GlowServer server, GlowWorld world, ItemStack item) {
         super(server, world);
         this.item = item;
+        pickupDelay = 20;
     }
 
     /**
@@ -63,6 +70,14 @@ public final class GlowItem extends GlowEntity implements Item {
         // TODO we can probably use some generic implementation for all of
         // these
         return null;
+    }
+
+    public int getPickupDelay() {
+        return pickupDelay;
+    }
+
+    public void setPickupDelay(int delay) {
+        pickupDelay = delay;
     }
 
 }

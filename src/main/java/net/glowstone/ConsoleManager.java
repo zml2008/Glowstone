@@ -46,6 +46,7 @@ import jline.SimpleCompletor;
 import org.bukkit.ChatColor;
 import org.bukkit.command.CommandException;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.event.server.ServerCommandEvent;
 
 /**
  * A meta-class to handle all logging and input-related console improvements.
@@ -108,9 +109,7 @@ public final class ConsoleManager {
         } else if (mode.equalsIgnoreCase("jline")) {
             jLine = true;
         }
-        
-        sender = new ColoredCommandSender();
-        thread = new ConsoleCommandThread();
+
         consoleHandler = new FancyConsoleHandler();
         
         String logFile = server.getLogFile();
@@ -137,14 +136,14 @@ public final class ConsoleManager {
         }
         
         Runtime.getRuntime().addShutdownHook(new ServerShutdownThread());
-        
-        if (jTerminal == null) {
-            thread.setDaemon(true);
-            thread.start();
-        }
+
         
         System.setOut(new PrintStream(new LoggerOutputStream(Level.INFO), true));
         System.setErr(new PrintStream(new LoggerOutputStream(Level.SEVERE), true));
+    }
+    
+    public ConsoleCommandSender getSender() {
+        return sender;
     }
     
     public void stop() {
@@ -156,6 +155,16 @@ public final class ConsoleManager {
             jFrame.dispose();
         }
     }
+
+    public void setupConsole() {
+        sender = new ColoredCommandSender();
+        thread = new ConsoleCommandThread();
+
+        if (jTerminal == null) {
+            thread.setDaemon(true);
+            thread.start();
+        }
+    }
     
     public void refreshCommands() {
         for (Object c : new ArrayList(reader.getCompletors())) {
@@ -164,6 +173,7 @@ public final class ConsoleManager {
         
         Completor[] list = new Completor[] { new SimpleCompletor(server.getAllCommands()), new NullCompletor() };
         reader.addCompletor(new ArgumentCompletor(list));
+        sender.recalculatePermissions();
     }
     
     public String colorize(String string) {
@@ -223,7 +233,7 @@ public final class ConsoleManager {
     private class ServerShutdownThread extends Thread {
         @Override
         public void run() {
-            server.stop();
+            server.shutdown();
         }
     }
     
@@ -235,6 +245,8 @@ public final class ConsoleManager {
         }
         
         public void run() {
+            command = EventFactory.onServerCommand(sender, command).getCommand();
+
             if (!server.dispatchCommand(sender, command)) {
                 String firstword = command;
                 if (command.indexOf(' ') >= 0) {
@@ -384,7 +396,7 @@ public final class ConsoleManager {
         public void keyReleased(KeyEvent e) {}
         
         public void windowClosing(WindowEvent e) {
-            server.stop();
+            server.shutdown();
         }
 
         public void keyTyped(KeyEvent e) {

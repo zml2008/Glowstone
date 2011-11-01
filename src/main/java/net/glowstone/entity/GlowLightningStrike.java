@@ -11,7 +11,6 @@ import net.glowstone.GlowWorld;
 
 /**
  * A GlowLightning strike is an entity produced during thunderstorms.
- * @author Zhuowei
  */
 public class GlowLightningStrike extends GlowWeather implements LightningStrike {
 
@@ -23,12 +22,12 @@ public class GlowLightningStrike extends GlowWeather implements LightningStrike 
     /**
      * How long this lightning strike has to remain in the world.
      */
-    private int ticksToLive;
+    private final int ticksToLive;
 
     public GlowLightningStrike(GlowServer server, GlowWorld world, boolean effect) {
         super(server, world);
         this.effect = effect;
-        this.ticksToLive = 30; // 30 ticks until despawn
+        this.ticksToLive = 30;
     }
 
     public boolean isEffect() {
@@ -37,8 +36,8 @@ public class GlowLightningStrike extends GlowWeather implements LightningStrike 
 
     @Override
     public void pulse() {
-        ticksToLive--;
-        if (ticksToLive < 0) {
+        super.pulse();
+        if (getTicksLived() >= ticksToLive) {
             remove();
         }
     }

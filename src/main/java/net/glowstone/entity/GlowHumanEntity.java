@@ -1,6 +1,12 @@
 package net.glowstone.entity;
 
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Set;
+
+import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.entity.HumanEntity;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.permissions.PermissibleBase;
@@ -35,6 +41,11 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
      * Whether this human is sleeping or not.
      */
     protected boolean sleeping = false;
+
+    /**
+     * The bed spawn location of a player
+     */
+    private Location bedSpawn;
     
     /**
      * How long this human has been sleeping.
@@ -44,12 +55,22 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
     /**
      * This human's PermissibleBase for permissions.
      */
-    private PermissibleBase permissions = new PermissibleBase(this);
+    protected PermissibleBase permissions;
     
     /**
      * Whether this human is considered an op.
      */
     private boolean isOp;
+
+    /**
+     * The player's active game mode
+     */
+    private GameMode gameMode;
+
+    /**
+     * The human entity's active effects
+     */
+    private Set<ActiveEntityEffect> activeEffects = Collections.synchronizedSet(new HashSet<ActiveEntityEffect>());
     
     /**
      * Creates a human within the specified world and with the specified name.
@@ -59,6 +80,8 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
     public GlowHumanEntity(GlowServer server, GlowWorld world, String name) {
         super(server, world);
         this.name = name;
+        permissions = new PermissibleBase(this);
+        gameMode = server.getDefaultGameMode();
     }
 
     @Override
@@ -94,6 +117,18 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
     public int getSleepTicks() {
         return sleepingTicks;
     }
+
+    public GameMode getGameMode() {
+        return gameMode;
+    }
+
+    public void setGameMode(GameMode mode) {
+        gameMode = mode;
+    }
+    
+    protected void setSleepTicks (int ticks) {
+        sleepingTicks = ticks;
+    }
     
     @Override
     public void pulse() {
@@ -102,6 +137,9 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
             ++sleepingTicks;
         } else {
             sleepingTicks = 0;
+        }
+        for (ActiveEntityEffect effect : activeEffects) {
+            if (!effect.pulse()) removeEntityEffect(effect);
         }
     }
 
@@ -157,6 +195,27 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
 
     public void setOp(boolean value) {
         isOp = value;
+        recalculatePermissions();
+    }
+    
+    public void addEntityEffect(ActiveEntityEffect effect) {
+        activeEffects.add(effect);
+    }
+
+    public void addEntityEffect(EntityEffect effect, byte amplitude, short duration) {
+        addEntityEffect(new ActiveEntityEffect(effect, amplitude, duration));
+    }
+
+    public void removeEntityEffect(ActiveEntityEffect effect) {
+        activeEffects.remove(effect);
+    }
+
+    public Location getBedSpawnLocation() {
+        return bedSpawn;
+    }
+
+    public void setBedSpawnLocation(Location bedSpawn) {
+        this.bedSpawn = bedSpawn;
     }
     
 }

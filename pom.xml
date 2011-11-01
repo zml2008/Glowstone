@@ -18,7 +18,7 @@
             <id>bukkit</id>
             <name>Bukkit Artifactory</name>
             <layout>default</layout>
-            <url>http://repo.bukkit.org/artifactory/repo/</url>
+            <url>http://repo.bukkit.org/content/groups/bukkit_repos/</url>
         </repository>
         <repository>
             <id>jboss</id>
@@ -43,7 +43,7 @@
     <pluginRepositories>
         <pluginRepository>
             <id>bukkit-plugins</id>
-            <url>http://repo.bukkit.org/artifactory/plugins-release</url>
+            <url>hhttp://repo.bukkit.org/content/repositories/plugins-release-local/</url>
         </pluginRepository>
     </pluginRepositories>
     
@@ -51,7 +51,7 @@
         <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>bukkit</artifactId>
-            <version>0.0.1-SNAPSHOT</version>
+            <version>1.8.1-R4-SNAPSHOT</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
@@ -93,6 +93,12 @@
             <artifactId>spoutapi</artifactId>
             <version>dev-SNAPSHOT</version>
         </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.8.1</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
     
     <build>
@@ -124,7 +130,7 @@
                     <archive>
                         <manifestEntries>
                             <Main-Class>net.glowstone.GlowServer</Main-Class>
-                            <Implementation-Title>Glowstone</Implementation-Title>
+                            <Implementation-Title>${project.name}</Implementation-Title>
                             <Implementation-Version>${describe}</Implementation-Version>
                             <Implementation-Vendor>SpaceManiac</Implementation-Vendor>
                             <Specification-Title>Bukkit</Specification-Title>
@@ -149,8 +155,8 @@
                 <artifactId>maven-shade-plugin</artifactId>
                 <version>1.4</version>
                 <executions>
-              <execution>
-                <phase>package</phase>
+                <execution>
+                    <phase>package</phase>
                         <goals>
                             <goal>shade</goal>
                         </goals>

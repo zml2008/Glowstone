@@ -1,16 +1,13 @@
 package net.glowstone;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Random;
-import java.util.UUID;
+import java.io.IOException;
+import java.util.*;
 import java.util.logging.Level;
 
 import org.bukkit.BlockChangeDelegate;
 import org.bukkit.Chunk;
 import org.bukkit.ChunkSnapshot;
+import org.bukkit.Difficulty;
 import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.TreeType;
@@ -28,13 +25,12 @@ import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.util.Vector;
 
+import net.glowstone.entity.*;
+import net.glowstone.io.StorageOperation;
+import net.glowstone.io.WorldMetadataService;
+import net.glowstone.io.WorldMetadataService.WorldFinalValues;
+import net.glowstone.io.WorldStorageProvider;
 import net.glowstone.block.GlowBlock;
-import net.glowstone.io.ChunkIoService;
-import net.glowstone.entity.GlowEntity;
-import net.glowstone.entity.EntityManager;
-import net.glowstone.entity.GlowLightningStrike;
-import net.glowstone.entity.GlowLivingEntity;
-import net.glowstone.entity.GlowPlayer;
 import net.glowstone.msg.LoadChunkMessage;
 import net.glowstone.msg.StateChangeMessage;
 import net.glowstone.msg.TimeMessage;
@@ -73,7 +69,7 @@ public final class GlowWorld implements World {
     /**
      * A map between locations and cached Block objects.
      */
-    private final HashMap<Location, GlowBlock> blockCache = new HashMap<Location, GlowBlock>();
+    private final Map<Location, GlowBlock> blockCache = new HashMap<Location, GlowBlock>();
     
     /**
      * The world populators for this world.
@@ -146,36 +142,70 @@ public final class GlowWorld implements World {
     private int saveTimer = 0;
 
     /**
+     * The check to autosave
+     */
+    private boolean autosave = true;
+
+    /*
+     * The world metadata service used
+     */
+    private final WorldStorageProvider storageProvider;
+
+    /**
+     * The world's UUID
+     */
+    private final UUID uid;
+
+    /**
      * Creates a new world with the specified chunk I/O service, environment,
      * and world generator.
      * @param name The name of the world.
-     * @param service The chunk I/O service.
+     * @param provider The world storage provider
      * @param environment The environment.
      * @param generator The world generator.
      */
-    public GlowWorld(GlowServer server, String name, Environment environment, long seed, ChunkIoService service, ChunkGenerator generator) {
+    public GlowWorld(GlowServer server, String name, Environment environment, long seed, WorldStorageProvider provider, ChunkGenerator generator) {
         this.server = server;
         this.name = name;
         this.environment = environment;
-        this.seed = seed;
-        chunks = new ChunkManager(this, service, generator);
-        
+        provider.setWorld(this);
+        chunks = new ChunkManager(this, provider.getChunkIoService(), generator);
+        storageProvider = provider;
+        EventFactory.onWorldInit(this);
+        WorldFinalValues values = null;
+        try {
+            values = provider.getMetadataService().readWorldData();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        // Extra checks for seed
+        if (values != null) {
+            if (values.getSeed() == 0L) {
+                this.seed = seed;
+            } else {
+                this.seed = values.getSeed();
+            }
+            this.uid = values.getUuid();
+        } else {
+            this.seed = seed;
+            this.uid = UUID.randomUUID();
+        }
         populators = generator.getDefaultPopulators(this);
-        spawnLocation = generator.getFixedSpawnLocation(this, random);
-        
+        if (spawnLocation == null) spawnLocation = generator.getFixedSpawnLocation(this, random);
+
         int centerX = (spawnLocation == null) ? 0 : spawnLocation.getBlockX() >> 4;
         int centerZ = (spawnLocation == null) ? 0 : spawnLocation.getBlockZ() >> 4;
         
         server.getLogger().log(Level.INFO, "Preparing spawn for {0}", name);
         long loadTime = System.currentTimeMillis();
         
-        int radius = 4 * GlowChunk.VISIBLE_RADIUS / 3;
+        int radius = 4 * server.getViewDistance() / 3;
         
         int total = (radius * 2 + 1) * (radius * 2 + 1), current = 0;
         for (int x = centerX - radius; x <= centerX + radius; ++x) {
             for (int z = centerZ - radius; z <= centerZ + radius; ++z) {
                 ++current;
-                chunks.getChunk(x, z);
+                loadChunk(x, z);
             
                 if (System.currentTimeMillis() >= loadTime + 1000) {
                     int progress = 100 * current / total;
@@ -185,27 +215,37 @@ public final class GlowWorld implements World {
             }
         }
         server.getLogger().log(Level.INFO, "Preparing spawn for {0}: done", name);
-        
         if (spawnLocation == null) {
-            spawnLocation = new Location(this, 0, 128, 0);
-            
-            if (!generator.canSpawn(this, spawnLocation.getBlockX(), spawnLocation.getBlockZ())) {
-                // 10 tries only to prevent a return false; bomb
-                for (int tries = 0; tries < 10 && !generator.canSpawn(this, spawnLocation.getBlockX(), spawnLocation.getBlockZ()); ++tries) {
-                    spawnLocation.setX(spawnLocation.getX() + random.nextDouble() * 128 - 64);
-                    spawnLocation.setZ(spawnLocation.getZ() + random.nextDouble() * 128 - 64);
+            spawnLocation = generator.getFixedSpawnLocation(this, random);
+            if (spawnLocation == null) {
+                spawnLocation = new Location(this, 0, getHighestBlockYAt(0, 0), 0);
+
+                if (!generator.canSpawn(this, spawnLocation.getBlockX(), spawnLocation.getBlockZ())) {
+                    // 10 tries only to prevent a return false; bomb
+                    for (int tries = 0; tries < 10 && !generator.canSpawn(this, spawnLocation.getBlockX(), spawnLocation.getBlockZ()); ++tries) {
+                        spawnLocation.setX(spawnLocation.getX() + random.nextDouble() * 128 - 64);
+                        spawnLocation.setZ(spawnLocation.getZ() + random.nextDouble() * 128 - 64);
+                    }
                 }
+
+                spawnLocation.setY(1 + getHighestBlockYAt(spawnLocation.getBlockX(), spawnLocation.getBlockZ()));
             }
-            
-            spawnLocation.setY(1 + getHighestBlockYAt(spawnLocation.getBlockX(), spawnLocation.getBlockZ()));
         }
-        
-        setStorm(false);
-        setThundering(false);
+        EventFactory.onWorldLoad(this);
+        save();
+
     }
 
     ////////////////////////////////////////
     // Various internal mechanisms
+    
+    /**
+     * Get the world chunk manager.
+     * @return The ChunkManager for the world.
+     */
+    protected ChunkManager getChunkManager() {
+        return chunks;
+    }
 
     /**
      * Updates all the entities within this world.
@@ -250,7 +290,7 @@ public final class GlowWorld implements World {
             }
         }
         
-        if (--saveTimer <= 0) {
+        if (autosave && --saveTimer <= 0) {
             saveTimer = 60 * 20;
             save();
         }
@@ -304,8 +344,15 @@ public final class GlowWorld implements World {
     }
 
     public boolean setSpawnLocation(int x, int y, int z) {
-        spawnLocation = new Location(this, x, y, z);
-        return true;
+        return setSpawnLocation(new Location(this, x, y, z));
+    }
+
+    public boolean setSpawnLocation(Location loc) {
+        Location oldSpawn = spawnLocation;
+        loc.setWorld(this);
+        spawnLocation = loc;
+        EventFactory.onSpawnChange(this, oldSpawn);
+        return !loc.equals(oldSpawn);
     }
 
     public boolean getPVP() {
@@ -340,7 +387,7 @@ public final class GlowWorld implements World {
     }
 
     public UUID getUID() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return uid;
     }
 
     public String getName() {
@@ -352,15 +399,60 @@ public final class GlowWorld implements World {
     }
 
     public int getMaxHeight() {
-        return 128;
+        return GlowChunk.DEPTH;
+    }
+
+    public int getSeaLevel() {
+        return getMaxHeight() / 2;
     }
 
     // force-save
 
     public void save() {
-        for (GlowChunk chunk : chunks.getLoadedChunks()) {
-            chunks.forceSave(chunk.getX(), chunk.getZ());
+        save(true);
+    }
+
+    public void save(boolean async) {
+        EventFactory.onWorldSave(this);
+        if (async) {
+            server.getStorageQueue().queue(new StorageOperation() {
+                @Override
+                public boolean isParallel() {
+                    return true;
+                }
+
+                @Override
+                public String getGroup() {
+                    return getName();
+                }
+
+                @Override
+                public String getOperation() {
+                    return "world-save";
+                }
+
+                @Override
+                public boolean queueMultiple() {
+                    return false;
+                }
+
+                public void run() {
+                    for (GlowChunk chunk : chunks.getLoadedChunks()) {
+                        chunks.forceSave(chunk.getX(), chunk.getZ());
+                    }
+                }
+            });
+        } else {
+            for (GlowChunk chunk : chunks.getLoadedChunks()) {
+                chunks.forceSave(chunk.getX(), chunk.getZ());
+            }
         }
+        
+        for (GlowPlayer player : getRawPlayers()) {
+            player.saveData(async);
+        }
+
+        writeWorldData(async);
     }
     
     // map generation
@@ -383,7 +475,7 @@ public final class GlowWorld implements World {
 
     // get block, chunk, id, highest methods with coords
 
-    public GlowBlock getBlockAt(int x, int y, int z) {
+    public synchronized GlowBlock getBlockAt(int x, int y, int z) {
         Location blockLoc = new Location(this, x, y, z);
         if (blockCache.containsKey(blockLoc)) {
             return blockCache.get(blockLoc);
@@ -401,13 +493,13 @@ public final class GlowWorld implements World {
     public int getHighestBlockYAt(int x, int z) {
         for (int y = GlowChunk.DEPTH - 1; y >= 0; --y) {
             if (getBlockTypeIdAt(x, y, z) != 0) {
-                return y;
+                return y + 1;
             }
         }
         return 0;
     }
 
-    public GlowChunk getChunkAt(int x, int z) {
+    public synchronized GlowChunk getChunkAt(int x, int z) {
         return chunks.getChunk(x, z);
     }
 
@@ -444,11 +536,11 @@ public final class GlowWorld implements World {
     // Chunk loading and unloading
 
     public boolean isChunkLoaded(Chunk chunk) {
-        return isChunkLoaded(chunk.getX(), chunk.getZ());
+        return chunk.isLoaded();
     }
 
     public boolean isChunkLoaded(int x, int z) {
-        return chunks.isLoaded(x, z);
+        return getChunkAt(x, z).isLoaded();
     }
 
     public Chunk[] getLoadedChunks() {
@@ -456,12 +548,11 @@ public final class GlowWorld implements World {
     }
 
     public void loadChunk(Chunk chunk) {
-        loadChunk(chunk.getX(), chunk.getZ());
+        chunk.load();
     }
 
     public void loadChunk(int x, int z) {
-        // Force load by getting chunk.
-        chunks.getChunk(x, z);
+        getChunkAt(x, z).load();
     }
 
     public boolean loadChunk(int x, int z, boolean generate) {
@@ -473,23 +564,26 @@ public final class GlowWorld implements World {
         }
     }
 
+    public boolean unloadChunk(Chunk chunk) {
+        return unloadChunk(chunk.getX(), chunk.getZ(), true);
+    }
+
     public boolean unloadChunk(int x, int z) {
         return unloadChunk(x, z, true);
     }
 
     public boolean unloadChunk(int x, int z, boolean save) {
-        return chunks.unloadChunk(x, z, save);
+        return unloadChunk(x, z, save, true);
     }
 
     public boolean unloadChunk(int x, int z, boolean save, boolean safe) {
         if (!safe) {
             throw new UnsupportedOperationException("unloadChunk does not yet support unsafe unloading.");
         }
-        return unloadChunk(x, z, save);
-    }
-
-    public boolean unloadChunk(Chunk chunk) {
-        return unloadChunk(chunk.getX(), chunk.getZ());
+        if (save) {
+            getChunkManager().forceSave(x, z);
+        }
+        return unloadChunkRequest(x, z, safe);
     }
 
     public boolean unloadChunkRequest(int x, int z) {
@@ -530,8 +624,13 @@ public final class GlowWorld implements World {
     // biomes
 
     public Biome getBiome(int x, int z) {
-        // TODO: Biomes
-        return Biome.PLAINS;
+        if (environment == Environment.SKYLANDS) {
+            return Biome.SKY;
+        } else if (environment == Environment.NETHER) {
+            return Biome.HELL;
+        }
+        
+        return Biome.FOREST;
     }
 
     public double getTemperature(int x, int z) {
@@ -613,6 +712,12 @@ public final class GlowWorld implements World {
                 return spawn(loc, org.bukkit.entity.Zombie.class);
             case WOLF:
                 return spawn(loc, org.bukkit.entity.Wolf.class);
+            case CAVE_SPIDER:
+                return spawn(loc, org.bukkit.entity.CaveSpider.class);
+            case SILVERFISH:
+                return spawn(loc, org.bukkit.entity.Silverfish.class);
+            case ENDERMAN:
+                return spawn(loc, org.bukkit.entity.Enderman.class);
             default:
                 throw new IllegalArgumentException();
         }
@@ -667,7 +772,7 @@ public final class GlowWorld implements World {
         }
         
         for (GlowPlayer player : getRawPlayers()) {
-            player.getSession().send(new StateChangeMessage((byte)(currentlyRaining ? 1 : 2)));
+            player.getSession().send(new StateChangeMessage((byte)(currentlyRaining ? 1 : 2), (byte)0));
         }
     }
 
@@ -756,4 +861,81 @@ public final class GlowWorld implements World {
         keepSpawnLoaded = keepLoaded;
     }
 
+    public boolean isAutoSave() {
+        return autosave;
+    }
+
+    public void setAutoSave(boolean value) {
+        autosave = value;
+    }
+
+    public void setDifficulty(Difficulty difficulty) {
+        throw new UnsupportedOperationException("Not implemented yet");
+    }
+
+    public Difficulty getDifficulty() {
+        return Difficulty.PEACEFUL;
+    }
+
+    // level data write
+
+    void writeWorldData(boolean async) {
+        if (async) {
+        server.getStorageQueue().queue(new StorageOperation() {
+            @Override
+            public boolean isParallel() {
+                return true;
+            }
+
+            @Override
+            public String getGroup() {
+                return getName();
+            }
+
+            @Override
+            public boolean queueMultiple() {
+                return false;
+            }
+
+            @Override
+            public String getOperation() {
+                return "world-metadata-save";
+            }
+
+            public void run() {
+                try {
+                    storageProvider.getMetadataService().writeWorldData();
+                } catch (IOException e) {
+                    server.getLogger().severe("Could not save world metadata file for world" + getName());
+                    e.printStackTrace();
+                }
+            }
+        });
+        } else {
+            try {
+                storageProvider.getMetadataService().writeWorldData();
+            } catch (IOException e) {
+                server.getLogger().severe("Could not save world metadata file for world" + getName());
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public WorldMetadataService getMetadataService() {
+        return storageProvider.getMetadataService();
+    }
+
+    /**
+     * Unloads the world
+     * 
+     * @return true if successful
+     */
+    public boolean unload() {
+        try {
+            storageProvider.getChunkIoService().unload();
+        } catch (IOException e) {
+            return false;
+        }
+        return true;
+    }
 }
