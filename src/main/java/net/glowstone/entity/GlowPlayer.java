@@ -139,6 +139,7 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, Invento
     public GlowPlayer(Session session, String name) {
         super(session.getServer(), (GlowWorld) session.getServer().getWorlds().get(0), name);
         this.session = session;
+        health = 20;
         if (session.getState() != Session.State.GAME) {
             session.send(new IdentificationMessage(getEntityId(), "", world.getSeed(), getGameMode().getValue(), world.getEnvironment().getId(), 1, world.getMaxHeight(), session.getServer().getMaxPlayers()));
         }
