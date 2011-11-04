@@ -12,6 +12,7 @@ import org.getspout.spoutapi.SpoutManager;
 import org.getspout.spoutapi.packet.PacketEntityTitle;
 import org.getspout.spoutapi.packet.PacketSkinURL;
 import org.getspout.spoutapi.player.AppearanceManager;
+import org.getspout.spoutapi.player.EntitySkinType;
 import org.getspout.spoutapi.player.SpoutPlayer;
 
 /**
@@ -170,7 +171,19 @@ public class GlowAppearanceManager implements AppearanceManager {
         resetAllSkins();
         resetAllTitles();
     }
-    
+
+    public void setEntitySkin(SpoutPlayer viewingPlayer, LivingEntity target, String url, EntitySkinType type) {
+        viewingPlayer.getInformation().setEntitySkin(target, url, type);
+    }
+
+    public void setGlobalEntitySkin(LivingEntity entity, String url, EntitySkinType type) {
+        SpoutManager.getPlayerManager().getGlobalInfo().setEntitySkin(entity, url, type);
+    }
+
+    public void resetEntitySkin(LivingEntity entity) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     public void registerPlayer(SpoutPlayer player) {
         if (!player.isSpoutCraftEnabled()) {
             return;

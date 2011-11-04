@@ -187,9 +187,7 @@ public final class Session {
 
         if (timeoutCounter >= TIMEOUT_TICKS)
             if (pingMessageId == 0) {
-                pingMessageId = new Random().nextInt();
-                send(new PingMessage(pingMessageId));
-                timeoutCounter = 0;
+                sendPing();
             } else {
                 disconnect("Timed out");
             }
@@ -295,6 +293,12 @@ public final class Session {
 
     public int getPingMessageId() {
         return pingMessageId;
+    }
+
+    public void sendPing() {
+        pingMessageId = random.nextInt();
+        send(new PingMessage(pingMessageId));
+        timeoutCounter = 0;
     }
 
     public void pong() {

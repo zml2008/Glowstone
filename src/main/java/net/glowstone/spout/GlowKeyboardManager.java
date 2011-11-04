@@ -15,11 +15,12 @@ import org.getspout.spoutapi.player.SpoutPlayer;
  * Keyboard manager for Spout integration. Cleaned up SimpleKeyboardManager from
  * the Spout plugin for CraftBukkit, used with permission.
  */
+@Deprecated
 public class GlowKeyboardManager implements KeyboardManager {
 
     protected HashSet<Plugin> pluginSet;
     protected HashMap<Plugin, HashMap<Keyboard, HashSet<KeyboardBinding>>> keyMap;
-
+    
     public GlowKeyboardManager() {
         pluginSet = new HashSet<Plugin>();
         keyMap = new HashMap<Plugin, HashMap<Keyboard, HashSet<KeyboardBinding>>>();

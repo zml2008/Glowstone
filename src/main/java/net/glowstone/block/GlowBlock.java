@@ -7,12 +7,18 @@ import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.PistonMoveReaction;
 
+import org.bukkit.inventory.ItemStack;
+import org.getspout.spoutapi.SpoutManager;
 import org.getspout.spoutapi.block.SpoutBlock;
 
 import net.glowstone.GlowChunk;
 import net.glowstone.GlowWorld;
 import net.glowstone.entity.GlowPlayer;
 import net.glowstone.msg.BlockChangeMessage;
+import org.getspout.spoutapi.material.CustomBlock;
+import org.getspout.spoutapi.material.MaterialData;
+
+import java.io.Serializable;
 
 /**
  * Represents a single block in a world.
@@ -208,11 +214,11 @@ public class GlowBlock implements Block, SpoutBlock {
     // ==== Spout ====
 
     public void setTypeAsync(Material type) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        setTypeIdAsync(type.getId());
     }
 
     public void setTypeIdAsync(int type) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        setTypeIdAndDataAsync(type, (byte)0);
     }
 
     public void setDataAsync(byte data) {
@@ -220,6 +226,70 @@ public class GlowBlock implements Block, SpoutBlock {
     }
 
     public void setTypeIdAndDataAsync(int type, byte data) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void setCustomBlock(CustomBlock block) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Serializable setData(String id, Serializable data) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Serializable getData(String id) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Serializable removeData(String id) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public String getName() {
+        return MaterialData.getMaterial(getTypeId(), getData()).getName();
+    }
+
+    public void setBlockPowered(boolean power) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void setBlockPowered(boolean power, BlockFace face) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void resetBlockPower() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public org.getspout.spoutapi.material.Block getBlockType() {
+        return MaterialData.getBlock(getTypeId(), getData());
+    }
+
+    public ItemStack toItemStack() {
+        return toItemStack(1);
+    }
+
+    public ItemStack toItemStack(int amount) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Integer getCustomBlockId() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Integer getCustomMetaData() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public boolean isCustomBlock() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void removeCustomBlockData() {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public CustomBlock getCustomBlock() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

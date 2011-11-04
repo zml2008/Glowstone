@@ -6,6 +6,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import org.getspout.spoutapi.SpoutManager;
+import org.getspout.spoutapi.gui.Color;
 import org.getspout.spoutapi.packet.PacketSky;
 import org.getspout.spoutapi.player.SkyManager;
 import org.getspout.spoutapi.player.SpoutPlayer;
@@ -22,6 +23,9 @@ public class GlowSkyManager implements SkyManager {
     private final HashMap<String, Integer> moonSize = new HashMap<String, Integer>();
     private final HashMap<String, String> sunUrl = new HashMap<String, String>();
     private final HashMap<String, String> moonUrl = new HashMap<String, String>();
+    private final HashMap<String, Color> skyColor = new HashMap<String, Color>();
+    private final HashMap<String, Color> fogColor = new HashMap<String, Color>();
+    private final HashMap<String, Color> cloudColor = new HashMap<String, Color>();
 
     // clouds
     
@@ -137,6 +141,48 @@ public class GlowSkyManager implements SkyManager {
         }
     }
 
+    public void setSkyColor(SpoutPlayer player, Color color) {
+        if (color == null || color == Color.remove()) {
+            skyColor.remove(player.getName());
+            player.sendPacket(new PacketSky(Color.remove(), null, null));
+        } else {
+            skyColor.put(player.getName(), color);
+            player.sendPacket(new PacketSky(color, null, null));
+        }
+    }
+
+    public Color getSkyColor(SpoutPlayer player) {
+        return skyColor.containsKey(player.getName()) ? skyColor.get(player.getName()) : Color.ignore();
+    }
+
+    public void setFogColor(SpoutPlayer player, Color color) {
+        if (color == null || color == Color.remove()) {
+            fogColor.remove(player.getName());
+            player.sendPacket(new PacketSky(null, Color.remove(), null));
+        } else {
+            fogColor.put(player.getName(), color);
+            player.sendPacket(new PacketSky(null, color, null));
+        }
+    }
+
+    public Color getFogColor(SpoutPlayer player) {
+        return fogColor.containsKey(player.getName()) ? fogColor.get(player.getName()) : Color.ignore();
+    }
+
+    public void setCloudColor(SpoutPlayer player, Color color) {
+        if (color == null || color == Color.remove()) {
+            cloudColor.remove(player.getName());
+            player.sendPacket(new PacketSky(null, null, Color.remove()));
+        } else {
+            cloudColor.put(player.getName(), color);
+            player.sendPacket(new PacketSky(null, null, color));
+        }
+    }
+
+    public Color getCloudColor(SpoutPlayer player) {
+        return cloudColor.containsKey(player.getName()) ? cloudColor.get(player.getName()) : Color.ignore();
+    }
+
     // misc
     
     public void registerPlayer(SpoutPlayer player) {
@@ -145,7 +191,10 @@ public class GlowSkyManager implements SkyManager {
             moon = moon == null ? "" : moon;
             String sun = getSunTextureUrl(player);
             sun = sun == null ? "" : sun;
-            player.sendPacket(new PacketSky(getRealCloudHeight(player), getStarFrequency(player), getSunSizePercent(player), getMoonSizePercent(player), sun, moon));
+            player.sendPacket(new PacketSky(getRealCloudHeight(player),
+                    getStarFrequency(player), getSunSizePercent(player),
+                    getMoonSizePercent(player), getSkyColor(player),
+                    getFogColor(player), getCloudColor(player), sun, moon));
         }
     }
 
@@ -156,8 +205,12 @@ public class GlowSkyManager implements SkyManager {
         moonSize.clear();
         sunUrl.clear();
         moonUrl.clear();
+        skyColor.clear();
+        fogColor.clear();
+        cloudColor.clear();
         for (Player player : Bukkit.getServer().getOnlinePlayers()) {
-            SpoutManager.getPlayer(player).sendPacket(new PacketSky(108, 1500, 100, 100, "[reset]", "[reset]"));
+            SpoutManager.getPlayer(player).sendPacket(new PacketSky(108, 1500, 100, 100,
+                    Color.remove(), Color.remove(), Color.remove(), "[reset]", "[reset]"));
         }
     }
     

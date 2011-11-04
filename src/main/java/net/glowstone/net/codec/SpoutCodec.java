@@ -24,15 +24,16 @@ public final class SpoutCodec extends MessageCodec<SpoutMessage> {
 
     @Override
     public SpoutMessage decode(ChannelBuffer buffer) throws IOException {
-        int id = buffer.readInt();
+        int id = buffer.readShort();
+        int version = buffer.readShort();
         int size = buffer.readInt();
         byte[] data = new byte[size];
         buffer.readBytes(data);
         
-        PacketType packetType = PacketType.getPacketFromId(id);
+        Class<? extends SpoutPacket> packetType = PacketType.getPacketFromId(id).getPacketClass();
         SpoutPacket packet = null;
         try {
-            Constructor<? extends SpoutPacket> constructor = packetType.getPacketClass().getConstructor();
+            Constructor<? extends SpoutPacket> constructor = packetType.getConstructor();
             packet = constructor.newInstance();
         } catch (Exception ex) {
             GlowServer.logger.log(Level.SEVERE, "Error parsing Spoutcraft packet: {0}", ex.getMessage());
@@ -40,7 +41,10 @@ public final class SpoutCodec extends MessageCodec<SpoutMessage> {
         }
         
         if (packet == null) {
+            GlowServer.logger.log(Level.WARNING, "Unknown Spoutcraft packet received with ID " + id);
             return null;
+        } else if (packet.getVersion() != version) {
+            GlowServer.logger.log(Level.WARNING, "Packet version mismatch! I have "+ packet.getVersion() + "but they have " + version);
         }
         ByteArrayInputStream bytes = new ByteArrayInputStream(data);
         packet.readData(new DataInputStream(bytes));
@@ -55,7 +59,8 @@ public final class SpoutCodec extends MessageCodec<SpoutMessage> {
         packet.writeData(new DataOutputStream(bytes));
         
         ChannelBuffer buffer = ChannelBuffers.buffer(8 + packet.getNumBytes());
-        buffer.writeInt(packet.getPacketType().getId());
+        buffer.writeShort(packet.getPacketType().getId());
+        buffer.writeShort(packet.getVersion());
         buffer.writeInt(packet.getNumBytes());
         buffer.writeBytes(bytes.toByteArray());
         

@@ -1,5 +1,6 @@
 package net.glowstone;
 
+import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.util.HashMap;
 import java.util.logging.Level;
@@ -10,6 +11,8 @@ import org.bukkit.ChunkSnapshot;
 import org.bukkit.block.BlockState;
 import org.bukkit.entity.Entity;
 
+import org.bukkit.util.BlockVector;
+import org.getspout.spoutapi.SpoutManager;
 import org.getspout.spoutapi.block.SpoutChunk;
 
 import net.glowstone.block.BlockProperties;
@@ -218,6 +221,24 @@ public final class GlowChunk implements Chunk, SpoutChunk {
      */
     public void setPopulated(boolean populated) {
         this.populated = populated;
+    }
+
+    // ======== Spout Functions ========
+
+    public Serializable setData(String id, Serializable data) {
+        return SpoutManager.getChunkDataManager().setChunkData(id, world, x, z, data);
+    }
+
+    public Serializable getData(String id) {
+        return SpoutManager.getChunkDataManager().getChunkData(id, world, x, z);
+    }
+
+    public Serializable removeData(String id) {
+        return SpoutManager.getChunkDataManager().removeChunkData(id, world, x, z);
+    }
+
+    public BlockVector[] getTaggedBlocks() {
+        return SpoutManager.getChunkDataManager().getTaggedBlocks(world, x, z);
     }
     
     // ======== Helper Functions ========

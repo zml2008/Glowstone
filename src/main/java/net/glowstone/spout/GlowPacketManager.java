@@ -1,5 +1,6 @@
 package net.glowstone.spout;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.ArrayList;
 import org.getspout.spoutapi.packet.PacketManager;
@@ -12,7 +13,7 @@ import org.getspout.spoutapi.packet.standard.MCPacket;
 public class GlowPacketManager implements PacketManager {
     
     private static final int UNCOMPRESSED_ID = -1;
-    private final HashMap<Integer, ArrayList<PacketListener>> listeners = new HashMap<Integer, ArrayList<PacketListener>>();
+    private ArrayList<PacketListener>[] listeners = new ArrayList[256];
     
     // add
 
@@ -35,20 +36,27 @@ public class GlowPacketManager implements PacketManager {
     }
 
     public void clearAllListeners() {
-        listeners.clear();
+        Arrays.fill(listeners, new ArrayList<PacketListener>());
     }
     
     // misc
 
-    public MCPacket getInstance(int packetId) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public MCPacket getInstance( final int packetId) {
+        throw new UnsupportedOperationException("Glowstone's packet system doesn't work like this!");
     }
     
     private ArrayList<PacketListener> getList(int packetId) {
-        if (!listeners.containsKey(packetId)) {
-            listeners.put(packetId, new ArrayList<PacketListener>());
+
+         if (listeners.length > packetId) {
+                if (listeners[packetId] == null) {
+                    return listeners[packetId] = new ArrayList<PacketListener>();
+                } else {
+                    return listeners[packetId];
+                }
+        } else {
+            listeners = Arrays.copyOf(listeners, packetId + 2);
+            return listeners[packetId] = new ArrayList<PacketListener>();
         }
-        return listeners.get(packetId);
     }
     
 }

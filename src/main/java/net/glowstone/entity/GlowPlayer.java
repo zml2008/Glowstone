@@ -17,6 +17,7 @@ import net.glowstone.io.StorageOperation;
 import net.glowstone.msg.*;
 import net.glowstone.util.Position;
 import org.bukkit.*;
+import org.bukkit.block.Sign;
 import org.bukkit.configuration.serialization.DelegateDeserialization;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.Inventory;
@@ -24,6 +25,11 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.event.player.PlayerChatEvent;
 
+import org.getspout.spoutapi.gui.Screen;
+import org.getspout.spoutapi.gui.ScreenType;
+import org.getspout.spoutapi.io.CRCStore;
+import org.getspout.spoutapi.io.CRCStoreRunnable;
+import org.getspout.spoutapi.player.PlayerInformation;
 import org.getspout.spoutapi.player.RenderDistance;
 import org.getspout.spoutapi.gui.InGameScreen;
 import org.getspout.spoutapi.keyboard.Keyboard;
@@ -821,6 +827,7 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         public boolean enabled = false;
         
         public InGameScreen screen = new InGameScreen(getEntityId());
+        public ScreenType currentScreen;
         
         public RenderDistance currentRender = RenderDistance.NORMAL;
         public RenderDistance maxRender = RenderDistance.FAR;
@@ -852,7 +859,7 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
             EventFactory.onSpoutCraftEnable(this);
             
             if (isOp()) {
-                sendPacket(new PacketAllowVisualCheats(true));
+                sendPacket(new PacketAllowVisualCheats(true, true, true, true, true, true, true));
             }
         }
     }
@@ -872,7 +879,11 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     // inventory
 
     public boolean closeActiveWindow() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        if (spoutcraft.screen.getActivePopup() == null) {
+            throw new UnsupportedOperationException("Not supported yet.");
+        } else {
+            return spoutcraft.screen.closePopup();
+        }
     }
 
     public boolean openInventoryWindow(Inventory inventory) {
@@ -904,7 +915,11 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     public InGameScreen getMainScreen() {
         return spoutcraft.screen;
     }
-    
+
+    public Screen getCurrentScreen() {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     // keys
 
     public Keyboard getForwardKey() {
@@ -979,6 +994,14 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
     }
 
+    public boolean sendInventoryEvent() {
+        return false;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public PlayerInformation getInformation() {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     public RenderDistance getMaximumRenderDistance() {
         return spoutcraft.maxRender;
     }
@@ -1038,8 +1061,82 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         sendPacket(new PacketNotification(title, message, toRender.getId(), data, time));
     }
 
-    public void setTexturePack(String url) {
-        sendPacket(new PacketTexturePack(url));
+    private byte[] urlBuffer = new byte[16384];
+    
+    public void setTexturePack(final String url) {
+        if (url.length() < 5 || !url.toLowerCase().endsWith(".zip")) {
+            throw new IllegalArgumentException("Invalid URL! Texture pack urls must be in .zip format!");
+        }
+        new CRCStore.URLCheck(url, urlBuffer, new CRCStoreRunnable() {
+            private long crc;
+            public void setCRC(Long crc) {
+                this.crc = crc;
+            }
+
+            public void run() {
+                sendPacket(new PacketTexturePack(url, crc));
+            }
+        }).start();
+    }
+
+    public void resetTexturePack() {
+        sendPacket(new PacketTexturePack("[none]", 0));
+    }
+
+    public double getGravityMultiplier() {
+        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void setGravityMultiplier(double multiplier) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public double getSwimmingMultiplier() {
+        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void setSwimmingMultiplier(double multiplier) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public double getWalkingMultiplier() {
+        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void setWalkingMultiplier(double multiplier) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public double getJumpingMultiplier() {
+        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void setJumpingMultiplier(double multiplier) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public double getAirSpeedMultiplier() {
+        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void setAirSpeedMultiplier(double multiplier) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void resetMovement() {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public boolean canFly() {
+        return false;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void setCanFly(boolean fly) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public Location getLastClickedLocation() {
+        return null;  //To change body of implemented methods use File | Settings | File Templates.
     }
 
     public void sendPacket(SpoutPacket packet) {
@@ -1055,28 +1152,65 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
     }
 
+    public boolean isPreCachingComplete() {
+        return false;  //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     public void sendImmediatePacket(MCPacket packet) {
         sendPacket(packet); // TODO
     }
-    
+
+    public void reconnect(String hostname, int port) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public void reconnect(String hostname) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+    public ScreenType getActiveScreen() {
+        return spoutcraft.currentScreen;
+    }
+
+    public void openSignEditGUI(Sign sign) {
+        sendPacket(new PacketOpenSignGUI(sign.getX(), sign.getY(), sign.getZ()));
+    }
+
+    public void openScreen(ScreenType type) {
+        openScreen(type, true);
+    }
+
+    public void openScreen(ScreenType type, boolean packet) {
+        if (isSpoutCraftEnabled()) {
+            if (packet) sendPacket(new PacketOpenScreen(type));
+            spoutcraft.currentScreen = type;
+        }
+    }
+
+    public void setPreCachingComplete(boolean complete) {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
     private Message makeMessage(MCPacket packet) {
         if (packet instanceof MCPacket0KeepAlive) {
-            return new PingMessage();
+            return null;
         } else if (packet instanceof MCPacket3Chat) {
             MCPacket3Chat chat = (MCPacket3Chat) packet;
             return new ChatMessage(chat.getMessage());
         } else if (packet instanceof MCPacket17) {
+            MCPacket17 seventeen = (MCPacket17) packet;
+
             // Currently no corresponding Message
             return null;
         } else if (packet instanceof MCPacket18ArmAnimation) {
             MCPacket18ArmAnimation anim = (MCPacket18ArmAnimation) packet;
             return new AnimateEntityMessage(anim.getEntityId(), anim.getAnimate());
-        } else if (packet instanceof MCPacket51MapChunk) {
-            // Currently no corresponding Message
-            return null;
         } else if (packet instanceof MCPacket51MapChunkUncompressed) {
             MCPacket51MapChunkUncompressed chunk = (MCPacket51MapChunkUncompressed) packet;
             return new CompressedChunkMessage(chunk.getX(), chunk.getY(), chunk.getZ(), chunk.getSizeX(), chunk.getSizeX(), chunk.getSizeZ(), chunk.getUncompressedChunkData());
+        } else if (packet instanceof MCPacket51MapChunk) {
+            // Currently no corresponding Message
+            return null;
         } else {
             // Unhandleable MCPacketUnknown or an otherwise unknown packet type
             return null;

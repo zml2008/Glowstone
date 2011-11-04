@@ -13,7 +13,6 @@ public final class SpoutMessageHandler extends MessageHandler<SpoutMessage> {
     public void handle(Session session, GlowPlayer player, SpoutMessage message) {
         if (player == null)
             return;
-
         message.getPacket().run(player.getEntityId());
     }
 
