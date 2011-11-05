@@ -6,20 +6,23 @@ import org.getspout.spoutapi.block.SpoutWeather;
 import org.getspout.spoutapi.player.EntitySkinType;
 import org.getspout.spoutapi.player.PlayerInformation;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 public class GlowPlayerInformation implements PlayerInformation {
+    private Map<Biome, SpoutWeather> weather = new HashMap<Biome, SpoutWeather>();
 
     public SpoutWeather getBiomeWeather(Biome biome) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return weather.get(biome);
     }
 
     public void setBiomeWeather(Biome biome, SpoutWeather weather) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        this.weather.put(biome, weather);
     }
 
     public Set<Biome> getBiomes() {
-        throw new UnsupportedOperationException("Not supported yet.");
+        return weather.keySet();
     }
 
     public void setEntitySkin(LivingEntity entity, String url) {

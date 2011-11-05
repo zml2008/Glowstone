@@ -2,13 +2,14 @@ package net.glowstone.spout;
 
 import org.bukkit.plugin.Plugin;
 import org.getspout.spoutapi.player.FileManager;
+import org.getspout.spoutapi.player.SpoutPlayer;
 
 import java.io.File;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 
-public class GlowFileManager implements FileManager {
+public class GlowFileManager implements FileManager, GlowSpoutComponent {
 
     public List<String> getCache(Plugin plugin) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -68,5 +69,11 @@ public class GlowFileManager implements FileManager {
 
     public boolean canCache(String fileUrl) {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {
+        // TODO: Implement this class
     }
 }

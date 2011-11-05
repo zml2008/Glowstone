@@ -5,6 +5,8 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 
 import net.glowstone.GlowServer;
+import net.glowstone.entity.GlowPlayer;
+
 import org.bukkit.ChatColor;
 import org.bukkit.permissions.PermissionDefault;
 

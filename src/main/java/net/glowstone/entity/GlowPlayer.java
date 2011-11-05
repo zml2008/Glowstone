@@ -7,7 +7,9 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.logging.Level;
 
@@ -15,6 +17,7 @@ import net.glowstone.GlowOfflinePlayer;
 import net.glowstone.block.GlowBlockState;
 import net.glowstone.io.StorageOperation;
 import net.glowstone.msg.*;
+import net.glowstone.spout.GlowPlayerInformation;
 import net.glowstone.util.Position;
 import org.bukkit.*;
 import org.bukkit.block.Sign;
@@ -25,8 +28,11 @@ import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.event.player.PlayerChatEvent;
 
+import org.getspout.spoutapi.gui.GenericLabel;
+import org.getspout.spoutapi.gui.OverlayScreen;
 import org.getspout.spoutapi.gui.Screen;
 import org.getspout.spoutapi.gui.ScreenType;
+import org.getspout.spoutapi.gui.WidgetAnchor;
 import org.getspout.spoutapi.io.CRCStore;
 import org.getspout.spoutapi.io.CRCStoreRunnable;
 import org.getspout.spoutapi.player.PlayerInformation;
@@ -146,6 +152,11 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     private String playerListName;
 
     /**
+     * This player's Spout information
+     */
+    private GlowPlayerInformation information = new GlowPlayerInformation();
+
+    /**
      * Creates a new player and adds it to the world.
      * @param session The player's session.
      * @param name The player's name.
@@ -214,7 +225,10 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
         
         // Spout
-        spoutcraft.screen.onTick();
+        spoutcraft.inGameScreen.onTick();
+        if (spoutcraft.screen != null && spoutcraft.screen instanceof OverlayScreen) {
+            spoutcraft.screen.onTick();
+        }
     }
 
     /**
@@ -824,21 +838,24 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
      * A holder for Spoutcraft-only information.
      */
     private class SpoutcraftData {
-        public boolean enabled = false;
-        
-        public InGameScreen screen = new InGameScreen(getEntityId());
+        public boolean enabled = false, preCached = false;
+
+        public InGameScreen inGameScreen = new InGameScreen(getEntityId());
+        public Screen screen = inGameScreen;
         public ScreenType currentScreen;
         
         public RenderDistance currentRender = RenderDistance.NORMAL;
         public RenderDistance maxRender = RenderDistance.FAR;
         public RenderDistance minRender = RenderDistance.TINY;
         
-        public int verMajor, verMinor, verBuild;
+        public String versionString = "not set";
         
         public Keyboard keyFront, keyBack, keyLeft, keyRight, keyJump;
         public Keyboard keyInv, keyDrop, keyChat, keyFog, keySneak;
         
         public String clipboard;
+        
+        public final Queue<SpoutPacket> preEnableQueue = new LinkedList<SpoutPacket>();
     }
     
     /**
@@ -848,41 +865,42 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     
     // basics
     
-    public void enableSpoutcraft(int major, int minor, int build) {
+    public void enableSpoutcraft() {
         if (!spoutcraft.enabled) {
             spoutcraft.enabled = true;
-            spoutcraft.verMajor = major;
-            spoutcraft.verMinor = minor;
-            spoutcraft.verBuild = build;
-            getServer().getLogger().log(Level.INFO, "{0} is using SpoutCraft {1}.{2}.{3}", new Object[]{getName(), major, minor, build});
-            
             EventFactory.onSpoutCraftEnable(this);
+            synchronized (spoutcraft.preEnableQueue) {
+                for (SpoutPacket packet : spoutcraft.preEnableQueue) {
+                    session.send(new SpoutMessage(packet));
+                }
+                spoutcraft.preEnableQueue.clear();
+            }
+            
+            getMainScreen().attachWidget(null, new GenericLabel("Glowstone server" + server.getVersion()).setAnchor(WidgetAnchor.TOP_LEFT));
             
             if (isOp()) {
                 sendPacket(new PacketAllowVisualCheats(true, true, true, true, true, true, true));
             }
         }
     }
+    
+    public void setSpoutcraftVersion(String version) {
+        if (isSpoutCraftEnabled()) {
+            spoutcraft.versionString = version;
+        }
+    }
 
     public boolean isSpoutCraftEnabled() {
         return spoutcraft.enabled;
-    }
-
-    public int getVersion() {
-		if (isSpoutCraftEnabled()) {
-			return spoutcraft.verMajor * 100 + spoutcraft.verMinor * 10 + spoutcraft.verBuild;
-		} else {
-            return -1;
-        }
     }
     
     // inventory
 
     public boolean closeActiveWindow() {
-        if (spoutcraft.screen.getActivePopup() == null) {
+        if (spoutcraft.inGameScreen.getActivePopup() == null) {
             throw new UnsupportedOperationException("Not supported yet.");
         } else {
-            return spoutcraft.screen.closePopup();
+            return spoutcraft.inGameScreen.closePopup();
         }
     }
 
@@ -913,11 +931,13 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     // gui
 
     public InGameScreen getMainScreen() {
-        return spoutcraft.screen;
+        return spoutcraft.inGameScreen;
     }
 
     public Screen getCurrentScreen() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        Screen screen = spoutcraft.screen;
+        if (screen == null) screen = spoutcraft.inGameScreen;
+        return screen;
     }
 
     // keys
@@ -995,11 +1015,11 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     }
 
     public boolean sendInventoryEvent() {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
+        return true; // TODO
     }
 
     public PlayerInformation getInformation() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        return information;
     }
 
     public RenderDistance getMaximumRenderDistance() {
@@ -1084,64 +1104,66 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     }
 
     public double getGravityMultiplier() {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setGravityMultiplier(double multiplier) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public double getSwimmingMultiplier() {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setSwimmingMultiplier(double multiplier) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public double getWalkingMultiplier() {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setWalkingMultiplier(double multiplier) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public double getJumpingMultiplier() {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setJumpingMultiplier(double multiplier) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public double getAirSpeedMultiplier() {
-        return 0;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setAirSpeedMultiplier(double multiplier) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void resetMovement() {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public boolean canFly() {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void setCanFly(boolean fly) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public Location getLastClickedLocation() {
-        return null;  //To change body of implemented methods use File | Settings | File Templates.
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public void sendPacket(SpoutPacket packet) {
         if (spoutcraft.enabled) {
             session.send(new SpoutMessage(packet));
+        } else {
+            spoutcraft.preEnableQueue.add(packet);
         }
     }
 
@@ -1153,7 +1175,11 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     }
 
     public boolean isPreCachingComplete() {
-        return false;  //To change body of implemented methods use File | Settings | File Templates.
+        return spoutcraft.preCached;
+    }
+
+    public void setPreCachingComplete(boolean complete) {
+        spoutcraft.preCached = complete;
     }
 
     public void sendImmediatePacket(MCPacket packet) {
@@ -1161,11 +1187,28 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     }
 
     public void reconnect(String hostname, int port) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        if (hostname.contains(":")) {
+            throw new IllegalArgumentException("Hostname must not contain ':'!");
+        }
+        kickPlayer("[Redirect] Please reconnect to : " + hostname + ":" + port);
     }
 
     public void reconnect(String hostname) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        if (hostname.contains(":")) {
+            String[] split = hostname.split(":");
+            if (split.length != 2) {
+                throw new IllegalArgumentException("Hostname must not contain more than one ':'!");
+            }
+            int port;
+            try {
+            	port = Integer.parseInt(split[1]);
+            } catch (NumberFormatException e) {
+            	throw new IllegalArgumentException("Number expected, String found!");
+            }
+            reconnect(split[0], port);
+        } else {
+            kickPlayer("[Redirect] Please reconnect to : " + hostname);
+        }
     }
 
     public ScreenType getActiveScreen() {
@@ -1187,21 +1230,18 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
     }
 
-    public void setPreCachingComplete(boolean complete) {
-        //To change body of implemented methods use File | Settings | File Templates.
-    }
-
     private Message makeMessage(MCPacket packet) {
         if (packet instanceof MCPacket0KeepAlive) {
+            // Added field here in 1.8, Spout isn't updated.
             return null;
         } else if (packet instanceof MCPacket3Chat) {
             MCPacket3Chat chat = (MCPacket3Chat) packet;
             return new ChatMessage(chat.getMessage());
         } else if (packet instanceof MCPacket17) {
-            MCPacket17 seventeen = (MCPacket17) packet;
+            MCPacket17 bed = (MCPacket17) packet;
 
             // Currently no corresponding Message
-            return null;
+            return new BedMessage(bed.getEntityId(), bed.getBed() == 1, bed.getBlockX(), bed.getBlockY(), bed.getBlockZ());
         } else if (packet instanceof MCPacket18ArmAnimation) {
             MCPacket18ArmAnimation anim = (MCPacket18ArmAnimation) packet;
             return new AnimateEntityMessage(anim.getEntityId(), anim.getAnimate());

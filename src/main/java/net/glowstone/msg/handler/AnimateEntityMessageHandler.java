@@ -16,7 +16,7 @@ public final class AnimateEntityMessageHandler extends MessageHandler<AnimateEnt
         
         // Spoutcraft check
         if (message.getId() == -42 && !player.isSpoutCraftEnabled()) {
-            player.enableSpoutcraft(1, 0, 2);
+            player.enableSpoutcraft();
             return;
         }
         

@@ -6,11 +6,12 @@ import java.util.ArrayList;
 import org.getspout.spoutapi.packet.PacketManager;
 import org.getspout.spoutapi.packet.listener.PacketListener;
 import org.getspout.spoutapi.packet.standard.MCPacket;
+import org.getspout.spoutapi.player.SpoutPlayer;
 
 /**
  * Packet manager for Spout integration.
  */
-public class GlowPacketManager implements PacketManager {
+public class GlowPacketManager implements PacketManager, GlowSpoutComponent {
     
     private static final int UNCOMPRESSED_ID = -1;
     private ArrayList<PacketListener>[] listeners = new ArrayList[256];
@@ -58,5 +59,10 @@ public class GlowPacketManager implements PacketManager {
             return listeners[packetId] = new ArrayList<PacketListener>();
         }
     }
-    
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {
+        clearAllListeners();
+    }
 }

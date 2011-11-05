@@ -62,6 +62,18 @@ dependencies the first time it is run.
 For documentation on the Bukkit API, see the
 [Bukkit Javadocs](http://jd.bukkit.org/).
 
+Contributing
+------------
+
+Glowstone is far from complete and the best way to bring it closer to 
+completion is to contribute code. Pull requests are accepted, providing they are 
+licensed under an MIT-compatible license, and preferrably if they follow the following 
+formatting guidelines:
+
+    * No tabs, always four spaces per indentation level for indentation
+    * No @author tags - Some classes are modified by a ton of people, and keeping @author tags for every editor becomes inpractical.
+    * No arbitrary linebreaks at a certain charlength - They're fine if they improve readability though.
+
 Credits
 -------
 

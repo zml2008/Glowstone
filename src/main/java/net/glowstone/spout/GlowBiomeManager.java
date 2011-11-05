@@ -9,7 +9,7 @@ import org.getspout.spoutapi.player.BiomeManager;
 import org.getspout.spoutapi.player.SpoutPlayer;
 
 
-public class GlowBiomeManager implements BiomeManager {
+public class GlowBiomeManager implements BiomeManager, GlowSpoutComponent {
 
     public void setPlayerBiomeWeather(SpoutPlayer player, Biome biome, SpoutWeather weather) {
         if (player.isSpoutCraftEnabled()) {
@@ -51,5 +51,22 @@ public class GlowBiomeManager implements BiomeManager {
         return SpoutManager.getPlayer(player).getInformation().getBiomeWeather(biome);
     }
 
-    
+
+    public void registerPlayer(SpoutPlayer player) {
+        if (player.isSpoutCraftEnabled()) {
+            for (Biome biome : Biome.values()) {
+                SpoutWeather biomeWeather = player.getInformation().getBiomeWeather(biome);
+                if (biomeWeather == null) {
+                    biomeWeather = getGlobalBiomeWeather(biome);
+                }
+                if (biomeWeather != null) {
+                    player.sendPacket(new PacketBiomeWeather(biome, biomeWeather));
+                }
+            }
+        }
+    }
+
+    public void resetAll() {
+        setGlobalWeather(SpoutWeather.RESET);
+    }
 }

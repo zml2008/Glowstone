@@ -39,6 +39,7 @@ public final class CodecLookupService {
             /* 0x07 */ bind(EntityInteractionCodec.class);
             /* 0x08 */ bind(HealthCodec.class);
             /* 0x09 */ bind(RespawnCodec.class);
+            /* 0x11 */ bind(BedCodec.class);
             /* 0x0A */ bind(GroundCodec.class);
             /* 0x0B */ bind(PositionCodec.class);
             /* 0x0C */ bind(RotationCodec.class);

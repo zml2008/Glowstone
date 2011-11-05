@@ -6,11 +6,12 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import org.getspout.spoutapi.inventory.InventoryBuilder;
+import org.getspout.spoutapi.player.SpoutPlayer;
 
 /**
  * Inventory builder for Spout integration.
  */
-public class GlowInventoryBuilder implements InventoryBuilder {
+public class GlowInventoryBuilder implements InventoryBuilder, GlowSpoutComponent {
 
     public Inventory construct(ItemStack[] items, String name) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -23,5 +24,8 @@ public class GlowInventoryBuilder implements InventoryBuilder {
     public Inventory construct(int size, String name) {
         return construct(new ItemStack[size], name);
     }
-    
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {}
 }

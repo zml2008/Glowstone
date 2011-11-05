@@ -3,10 +3,11 @@ package net.glowstone.spout;
 import org.bukkit.World;
 import org.bukkit.util.BlockVector;
 import org.getspout.spoutapi.chunkdatamanager.ChunkDataManager;
+import org.getspout.spoutapi.player.SpoutPlayer;
 
 import java.io.Serializable;
 
-public class GlowChunkDataManager implements ChunkDataManager {
+public class GlowChunkDataManager implements ChunkDataManager, GlowSpoutComponent {
     
     public int getStringId(String string) {
         throw new UnsupportedOperationException("Not supported yet.");
@@ -40,4 +41,7 @@ public class GlowChunkDataManager implements ChunkDataManager {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {}
 }

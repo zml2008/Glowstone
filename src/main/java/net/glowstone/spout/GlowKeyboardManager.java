@@ -16,7 +16,7 @@ import org.getspout.spoutapi.player.SpoutPlayer;
  * the Spout plugin for CraftBukkit, used with permission.
  */
 @Deprecated
-public class GlowKeyboardManager implements KeyboardManager {
+public class GlowKeyboardManager implements KeyboardManager, GlowSpoutComponent {
 
     protected HashSet<Plugin> pluginSet;
     protected HashMap<Plugin, HashMap<Keyboard, HashSet<KeyboardBinding>>> keyMap;
@@ -96,5 +96,8 @@ public class GlowKeyboardManager implements KeyboardManager {
             }
         }
     }
-    
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {}
 }

@@ -41,6 +41,7 @@ import org.bukkit.util.permissions.DefaultPermissions;
 import org.getspout.spoutapi.SpoutManager;
 
 import net.glowstone.command.*;
+import net.glowstone.entity.GlowPlayer;
 import net.glowstone.io.StorageQueue;
 import net.glowstone.io.mcregion.McRegionWorldStorageProvider;
 import net.glowstone.net.MinecraftPipelineFactory;
@@ -408,7 +409,6 @@ public final class GlowServer implements Server {
         // Config should have already loaded by this point, but to be safe...
         loadConfiguration();
         consoleManager.setupConsole();
-        
         // Load player lists
         opsList.load();
         whitelist.load();
@@ -440,6 +440,7 @@ public final class GlowServer implements Server {
         commandMap.register(new HelpCommand(this, commandMap.getKnownCommands(false)));
 
         enablePlugins(PluginLoadOrder.STARTUP);
+
 
         // Create worlds
         createWorld(WorldCreator.name(config.getString("server.world-name", "world")).environment(Environment.NORMAL));
@@ -492,7 +493,7 @@ public final class GlowServer implements Server {
     private void loadPlugins() {
         // clear the map
         commandMap.removeAllOfType(PluginCommand.class);
-
+        GlowSpoutManager.resetAll();
         File folder = new File(config.getString("server.folders.plugins", "plugins"));
         folder.mkdirs();
         
@@ -551,7 +552,6 @@ public final class GlowServer implements Server {
             
             // resetAll various things
             craftingManager.resetRecipes();
-            GlowSpoutManager.resetAll();
             
             // Load plugins
             loadPlugins();
@@ -698,13 +698,13 @@ public final class GlowServer implements Server {
      *
      * @return An array of Players that are currently online
      */
-    public Player[] getOnlinePlayers() {
-        ArrayList<Player> result = new ArrayList<Player>();
-        for (World world : getWorlds()) {
-            for (Player player : world.getPlayers())
+    public GlowPlayer[] getOnlinePlayers() {
+        ArrayList<GlowPlayer> result = new ArrayList<GlowPlayer>();
+        for (GlowWorld world : worlds) {
+            for (GlowPlayer player : world.getRawPlayers())
                 result.add(player);
         }
-        return result.toArray(new Player[result.size()]);
+        return result.toArray(new GlowPlayer[result.size()]);
     }
     
     /**

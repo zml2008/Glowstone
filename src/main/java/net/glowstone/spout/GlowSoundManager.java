@@ -19,7 +19,7 @@ import org.getspout.spoutapi.SpoutManager;
  * Sound manager for Spout integration. Modified SimpleSoundManager from the
  * Spout plugin for CraftBukkit, used with permission.
  */
-public class GlowSoundManager implements SoundManager {
+public class GlowSoundManager implements SoundManager, GlowSpoutComponent {
 
     // sound effects
     
@@ -204,6 +204,15 @@ public class GlowSoundManager implements SoundManager {
                 throw new IllegalArgumentException("All audio files must be ogg vorbis, wav, or midi type");
             }
         }
+    }
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {
+        for (SpoutPlayer player : SpoutManager.getPlayerManager().getOnlinePlayers()) {
+            stopMusic(player);
+        }
+        
     }
     
 }

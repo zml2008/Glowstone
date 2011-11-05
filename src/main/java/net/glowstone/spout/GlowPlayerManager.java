@@ -1,8 +1,6 @@
 package net.glowstone.spout;
 
-import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.List;
 import java.util.UUID;
 import java.util.logging.Level;
 
@@ -20,7 +18,7 @@ import net.glowstone.GlowServer;
 /**
  * Player manager for Spout integration.
  */
-public class GlowPlayerManager implements PlayerManager {
+public class GlowPlayerManager implements PlayerManager, GlowSpoutComponent {
     
     private final HashSet<Player> nagList = new HashSet<Player>();
     private final PlayerInformation globalInfo = new GlowPlayerInformation();
@@ -50,7 +48,7 @@ public class GlowPlayerManager implements PlayerManager {
         }
 	}
 
-    public GlowPlayer getPlayer(SpoutPlayer player) {
+    public GlowPlayer getGlowPlayer(SpoutPlayer player) {
         if (player instanceof GlowPlayer) {
             return (GlowPlayer) player;
         }
@@ -84,15 +82,11 @@ public class GlowPlayerManager implements PlayerManager {
     }
 
     public SpoutPlayer[] getOnlinePlayers() {
-        List<SpoutPlayer> players = new ArrayList<SpoutPlayer>();
-        for (Player player : Bukkit.getServer().getOnlinePlayers()) {
-            players.add(getPlayer(player));
-        }
-        return players.toArray(new SpoutPlayer[players.size()]);
+        return (GlowPlayer[])Bukkit.getServer().getOnlinePlayers();
     }
 
     public void setVersionString(int playerId, String versionString) {
-        throw new UnsupportedOperationException("Not supported yet.");
+        getGlowPlayer(getPlayer(playerId)).setSpoutcraftVersion(versionString);
     }
 
     public Entity getEntity(UUID id) {
@@ -102,5 +96,9 @@ public class GlowPlayerManager implements PlayerManager {
     public Entity getEntity(int entityId) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {}
 
 }

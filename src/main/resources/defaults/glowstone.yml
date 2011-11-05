@@ -33,15 +33,15 @@ spout:
     spoutcraft:
         required: false
         required-kick-message: "This server requires Spoutcraft! http://bit.ly/unleashtheflow"
-		auth-ticks: 200
-	    allow-cheats:
-	        sky: false
-	        clear-water: false
-	        stars: false
-	        weather: false
-	        time: false
-	        coords: false
-	        entity-labels: false
+        auth-ticks: 200
+        allow-cheats:
+            sky: false
+            clear-water: false
+            stars: false
+            weather: false
+            time: false
+            coords: false
+            entity-labels: false
         authenticate: true
     chunk-data-cache: true
     teleport-smoothing: true

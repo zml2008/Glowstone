@@ -15,7 +15,7 @@ import org.getspout.spoutapi.player.SpoutPlayer;
  * Sky manager for Spout integration. Modified SimpleSkyManager from the
  * Spout plugin for CraftBukkit, used with permission.
  */
-public class GlowSkyManager implements SkyManager {
+public class GlowSkyManager implements SkyManager, GlowSpoutComponent {
 
     private final HashMap<String, Integer> cloudHeight = new HashMap<String, Integer>();
     private final HashMap<String, Integer> starFreq = new HashMap<String, Integer>();

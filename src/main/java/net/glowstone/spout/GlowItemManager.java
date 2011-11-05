@@ -27,7 +27,7 @@ import org.getspout.spoutapi.player.SpoutPlayer;
  * Spout plugin for CraftBukkit, used with permission.
  */
 @Deprecated
-public class GlowItemManager implements ItemManager {
+public class GlowItemManager implements ItemManager, GlowSpoutComponent {
 
     private final HashMap<ItemData, String> itemNames;
     private final HashMap<ItemData, String> customNames;
@@ -531,6 +531,10 @@ public class GlowItemManager implements ItemManager {
                 player.sendPacket(new PacketItemName(entry.getKey().id, entry.getKey().data, entry.getValue()));
             }
         }
+    }
+
+    public void resetAll() {
+        reset();
     }
 
     private static class ItemData {

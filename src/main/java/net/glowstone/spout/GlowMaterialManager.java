@@ -1,20 +1,21 @@
 package net.glowstone.spout;
 
+import net.glowstone.block.GlowBlock;
 import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
 import org.bukkit.plugin.Plugin;
-import org.getspout.spoutapi.block.SpoutBlock;
 import org.getspout.spoutapi.block.design.BlockDesign;
 import org.getspout.spoutapi.inventory.MaterialManager;
 import org.getspout.spoutapi.material.Block;
 import org.getspout.spoutapi.material.CustomBlock;
 import org.getspout.spoutapi.material.CustomItem;
 import org.getspout.spoutapi.material.Material;
+import org.getspout.spoutapi.player.SpoutPlayer;
 
 import java.util.Set;
 
-public class GlowMaterialManager implements MaterialManager {
+public class GlowMaterialManager implements MaterialManager, GlowSpoutComponent {
 
 
     public String getStepSound(Block block) {
@@ -149,8 +150,11 @@ public class GlowMaterialManager implements MaterialManager {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public SpoutBlock getSpoutBlock(org.bukkit.block.Block block) {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public GlowBlock getSpoutBlock(org.bukkit.block.Block block) {
+        if (block instanceof GlowBlock) {
+            return (GlowBlock) block;
+        }
+        throw new UnsupportedOperationException("Block " + block + " is not a GlowBlock!");
     }
 
     public boolean registerSpoutRecipe(Recipe recipe) {
@@ -176,4 +180,8 @@ public class GlowMaterialManager implements MaterialManager {
     public ItemStack getItemDrop(CustomBlock block) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
+
+    public void registerPlayer(SpoutPlayer player) {}
+
+    public void resetAll() {}
 }

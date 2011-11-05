@@ -2,6 +2,7 @@ package net.glowstone.spout;
 
 import java.util.HashMap;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.HumanEntity;
@@ -9,6 +10,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import org.getspout.spoutapi.SpoutManager;
+import org.getspout.spoutapi.packet.PacketEntitySkin;
 import org.getspout.spoutapi.packet.PacketEntityTitle;
 import org.getspout.spoutapi.packet.PacketSkinURL;
 import org.getspout.spoutapi.player.AppearanceManager;
@@ -18,7 +20,7 @@ import org.getspout.spoutapi.player.SpoutPlayer;
 /**
  * Appearance manager for Spout integration.
  */
-public class GlowAppearanceManager implements AppearanceManager {
+public class GlowAppearanceManager implements AppearanceManager, GlowSpoutComponent {
 
     HashMap<String, String> globalSkinMap = new HashMap<String, String>();
     HashMap<String, HashMap<String, String>> skinMap = new HashMap<String, HashMap<String, String>>();
@@ -174,14 +176,23 @@ public class GlowAppearanceManager implements AppearanceManager {
 
     public void setEntitySkin(SpoutPlayer viewingPlayer, LivingEntity target, String url, EntitySkinType type) {
         viewingPlayer.getInformation().setEntitySkin(target, url, type);
+        viewingPlayer.sendPacket(new PacketEntitySkin(target, url, type.getId()));
     }
 
     public void setGlobalEntitySkin(LivingEntity entity, String url, EntitySkinType type) {
         SpoutManager.getPlayerManager().getGlobalInfo().setEntitySkin(entity, url, type);
+        PacketEntitySkin packet = new PacketEntitySkin(entity, url, type.getId());
+        for (SpoutPlayer player : SpoutManager.getPlayerManager().getOnlinePlayers()) {
+            player.sendPacket(packet);
+        }
     }
 
     public void resetEntitySkin(LivingEntity entity) {
-        //To change body of implemented methods use File | Settings | File Templates.
+        SpoutManager.getPlayerManager().getGlobalInfo().setEntitySkin(entity, null);
+        PacketEntitySkin packet = new PacketEntitySkin(entity, "[reset]", (byte) 0);
+        for (SpoutPlayer player : SpoutManager.getPlayerManager().getOnlinePlayers()) {
+            player.sendPacket(packet);
+        }
     }
 
     public void registerPlayer(SpoutPlayer player) {
@@ -201,6 +212,12 @@ public class GlowAppearanceManager implements AppearanceManager {
                 if (living instanceof HumanEntity) {
                     HumanEntity human = (HumanEntity) living;
                     player.sendPacket(new PacketSkinURL(living.getEntityId(), getSkinUrl(player, human), getCloakUrl(player, human)));
+                }
+                for (EntitySkinType type : EntitySkinType.values()) {
+                    String url = SpoutManager.getPlayerManager().getGlobalInfo().getEntitySkin(living, type);
+                    if (url != null) {
+                        player.sendPacket(new PacketEntitySkin(living, url, type.getId()));
+                    }
                 }
             }
         }
