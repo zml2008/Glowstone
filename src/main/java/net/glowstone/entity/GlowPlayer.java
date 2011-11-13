@@ -157,6 +157,12 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
     private GlowPlayerInformation information = new GlowPlayerInformation();
 
     /**
+     * Stores the last block placement message to work around a bug in the
+     * vanilla client where duplicate packets are sent.
+     */
+    private BlockPlacementMessage lastPlacement;
+
+    /**
      * Creates a new player and adds it to the world.
      * @param session The player's session.
      * @param name The player's name.
@@ -1332,5 +1338,13 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         Map<String, Object> ret = new HashMap<String, Object>();
         ret.put("name", getName());
         return ret;
+    }
+
+    public BlockPlacementMessage getPreviousPlacement() {
+        return lastPlacement;
+    }
+
+    public void setPreviousPlacement(BlockPlacementMessage message) {
+        this.lastPlacement = message;
     }
 }

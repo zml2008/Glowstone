@@ -336,6 +336,7 @@ public final class GlowChunk implements Chunk, SpoutChunk {
      * @return A GlowBlockState if the entity exists, or null otherwise.
      */
     public GlowBlockState getEntity(int x, int y, int z) {
+        if (y >= world.getMaxHeight() - 1 || y < 0) return null;
         load();
         return tileEntities.get(coordToIndex(x, z, y));
     }
@@ -348,6 +349,7 @@ public final class GlowChunk implements Chunk, SpoutChunk {
      * @return The type.
      */
     public int getType(int x, int z, int y) {
+        if (y >= world.getMaxHeight() - 1 || y < 0) return 0;
         load();
         return types[coordToIndex(x, z, y)];
     }
@@ -394,6 +396,7 @@ public final class GlowChunk implements Chunk, SpoutChunk {
      * @return The metadata.
      */
     public int getMetaData(int x, int z, int y) {
+        if (y >= world.getMaxHeight() - 1 || y < 0) return 0;
         load();
         return metaData[coordToIndex(x, z, y)];
     }
@@ -421,6 +424,7 @@ public final class GlowChunk implements Chunk, SpoutChunk {
      * @return The sky light level.
      */
     public int getSkyLight(int x, int z, int y) {
+        if (y >= world.getMaxHeight() - 1 || y < 0) return 0;
         load();
         return skyLight[coordToIndex(x, z, y)];
     }
@@ -448,6 +452,7 @@ public final class GlowChunk implements Chunk, SpoutChunk {
      * @return The block light level.
      */
     public int getBlockLight(int x, int z, int y) {
+        if (y >= world.getMaxHeight() - 1 || y < 0) return 0;
         load();
         return blockLight[coordToIndex(x, z, y)];
     }
