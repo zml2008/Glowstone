@@ -1,5 +1,6 @@
 package net.glowstone.spout;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.plugin.Plugin;
 import org.getspout.spoutapi.SpoutManager;
 import org.getspout.spoutapi.event.input.KeyBindingEvent;
@@ -51,8 +52,7 @@ public class GlowKeyBindingManager implements KeyBindingManager, GlowSpoutCompon
         return null;
     }
 
-    public void registerPlayer(SpoutPlayer player) {
-        System.out.println("Registering player: " + player);
+    public void registerPlayer(GlowPlayer player) {
         for (KeyBinding binding : registeredBindings.values()) {
             player.sendPacket(new PacketKeyBinding(binding));
         }

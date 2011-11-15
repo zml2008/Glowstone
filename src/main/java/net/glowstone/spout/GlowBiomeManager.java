@@ -1,5 +1,6 @@
 package net.glowstone.spout;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.block.Biome;
 import org.bukkit.entity.Player;
 import org.getspout.spoutapi.SpoutManager;
@@ -52,7 +53,7 @@ public class GlowBiomeManager implements BiomeManager, GlowSpoutComponent {
     }
 
 
-    public void registerPlayer(SpoutPlayer player) {
+    public void registerPlayer(GlowPlayer player) {
         if (player.isSpoutCraftEnabled()) {
             for (Biome biome : Biome.values()) {
                 SpoutWeather biomeWeather = player.getInformation().getBiomeWeather(biome);

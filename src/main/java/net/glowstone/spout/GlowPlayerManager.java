@@ -97,7 +97,7 @@ public class GlowPlayerManager implements PlayerManager, GlowSpoutComponent {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {}
 

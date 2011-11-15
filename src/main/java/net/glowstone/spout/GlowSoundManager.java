@@ -1,5 +1,6 @@
 package net.glowstone.spout;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
@@ -206,7 +207,7 @@ public class GlowSoundManager implements SoundManager, GlowSpoutComponent {
         }
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {
         for (SpoutPlayer player : SpoutManager.getPlayerManager().getOnlinePlayers()) {

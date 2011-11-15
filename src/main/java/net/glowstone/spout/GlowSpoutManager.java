@@ -3,30 +3,20 @@ package net.glowstone.spout;
 import net.glowstone.entity.GlowPlayer;
 import net.glowstone.msg.AnimateEntityMessage;
 
-import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
-import org.bukkit.entity.Player;
-
 import org.getspout.spoutapi.SpoutManager;
-import org.getspout.spoutapi.packet.PacketAllowVisualCheats;
-import org.getspout.spoutapi.player.SpoutPlayer;
-import org.getspout.spoutapi.sound.SoundManager;
+import org.getspout.spoutapi.chunkstore.PlayerTrackingManager;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
  * Helper class for managing Spout integration.
  */
 public class GlowSpoutManager {
+    private static PlayerTrackingManager tracking = new PlayerTrackingManager();
     
     private GlowSpoutManager() {}
     private static final Set<GlowSpoutComponent> components = new HashSet<GlowSpoutComponent>();
-    
-    public static final int verMajor = 1;
-    public static final int verMinor = 0;
-    public static final int verBuild = 1;
     
     static {
         SpoutManager.getInstance().setAppearanceManager(register(new GlowAppearanceManager()));
@@ -54,13 +44,13 @@ public class GlowSpoutManager {
      * Register a player join with the appropriate managers.
      * @param player The player to register.
      */
-    public static void registerPlayer(SpoutPlayer player) {
+    public static void registerPlayer(GlowPlayer player) {
         for (GlowSpoutComponent component : components) {
             component.registerPlayer(player);
         }
         
         // send the magic animate packet
-        ((GlowPlayer) player).getSession().send(new AnimateEntityMessage(-42, 0));
+        player.getSession().send(new AnimateEntityMessage(-42, 0));
     }
     
     /**
@@ -70,6 +60,10 @@ public class GlowSpoutManager {
         for (GlowSpoutComponent component: components) {
             component.resetAll();
         }
+    }
+
+    public static PlayerTrackingManager getTrackingManager() {
+        return tracking;
     }
     
 }

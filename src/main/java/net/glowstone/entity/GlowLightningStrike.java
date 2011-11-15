@@ -8,11 +8,12 @@ import net.glowstone.util.Position;
 import net.glowstone.msg.Message;
 import net.glowstone.msg.SpawnLightningStrikeMessage;
 import net.glowstone.GlowWorld;
+import org.getspout.spoutapi.entity.SpoutLightningStrike;
 
 /**
  * A GlowLightning strike is an entity produced during thunderstorms.
  */
-public class GlowLightningStrike extends GlowWeather implements LightningStrike {
+public class GlowLightningStrike extends GlowWeather implements LightningStrike, SpoutLightningStrike {
 
     /**
      * Whether the lightning strike is just for effect.

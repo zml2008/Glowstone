@@ -862,6 +862,9 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         public String clipboard;
         
         public final Queue<SpoutPacket> preEnableQueue = new LinkedList<SpoutPacket>();
+
+        public double gravityMultiplier, swimmingMultiplier, walkingMultiplier, jumpingMultiplier, airSpeedMultiplier;
+        public boolean canFly;
     }
     
     /**
@@ -881,8 +884,6 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
                 }
                 spoutcraft.preEnableQueue.clear();
             }
-            
-            getMainScreen().attachWidget(null, new GenericLabel("Glowstone server" + server.getVersion()).setAnchor(WidgetAnchor.TOP_LEFT));
             
             if (isOp()) {
                 sendPacket(new PacketAllowVisualCheats(true, true, true, true, true, true, true));
@@ -1057,7 +1058,11 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
             sendPacket(new PacketRenderDistance(null, minimum, null));
         }
     }
-    
+
+    public void sendNotification(String title, String message, ItemStack itemStack, int time) {
+        sendPacket(new PacketNotification(title, message, itemStack.getTypeId(), itemStack.getDurability(), time));
+    }
+
     // clipboard
 
     public String getClipboardText() {
@@ -1173,6 +1178,10 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
         }
     }
 
+    public void sendDelayedPacket(SpoutPacket spoutPacket) {
+        sendPacket(spoutPacket);
+    }
+
     public void sendPacket(MCPacket packet) {
         Message message = makeMessage(packet);
         if (message != null) {
@@ -1227,6 +1236,10 @@ public final class GlowPlayer extends GlowHumanEntity implements Player, SpoutPl
 
     public void openScreen(ScreenType type) {
         openScreen(type, true);
+    }
+
+    public void sendScreenshotRequest() {
+        sendPacket(new PacketScreenshot());
     }
 
     public void openScreen(ScreenType type, boolean packet) {

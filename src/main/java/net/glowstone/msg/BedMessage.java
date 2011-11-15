@@ -30,4 +30,9 @@ public class BedMessage extends Message {
     public int getZ() {
         return z;
     }
+
+    @Override
+    public String toString() {
+        return "BedMessage{id=" + entityId + ",inBed=" + inBed + ",x=" + x + ",y=" + y + ",z=" + z + "}";
+    }
 }

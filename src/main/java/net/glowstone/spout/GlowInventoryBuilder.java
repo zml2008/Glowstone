@@ -2,11 +2,11 @@ package net.glowstone.spout;
 
 import java.util.Collection;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
 import org.getspout.spoutapi.inventory.InventoryBuilder;
-import org.getspout.spoutapi.player.SpoutPlayer;
 
 /**
  * Inventory builder for Spout integration.
@@ -25,7 +25,7 @@ public class GlowInventoryBuilder implements InventoryBuilder, GlowSpoutComponen
         return construct(new ItemStack[size], name);
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {}
 }

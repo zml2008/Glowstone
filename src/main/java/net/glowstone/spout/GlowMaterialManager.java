@@ -1,6 +1,7 @@
 package net.glowstone.spout;
 
 import net.glowstone.block.GlowBlock;
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.World;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.Recipe;
@@ -11,8 +12,8 @@ import org.getspout.spoutapi.material.Block;
 import org.getspout.spoutapi.material.CustomBlock;
 import org.getspout.spoutapi.material.CustomItem;
 import org.getspout.spoutapi.material.Material;
-import org.getspout.spoutapi.player.SpoutPlayer;
 
+import java.io.File;
 import java.util.Set;
 
 public class GlowMaterialManager implements MaterialManager, GlowSpoutComponent {
@@ -84,6 +85,12 @@ public class GlowMaterialManager implements MaterialManager, GlowSpoutComponent 
 
     public void onCustomMaterialRegistered(Material mat) {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public File getWorldDirectory(World world) {
+        File dir = new File(world.getName());
+        if (!dir.exists() || !dir.isDirectory()) dir.mkdirs();
+        return dir;
     }
 
     public void setItemName(Material item, String name) {
@@ -181,7 +188,7 @@ public class GlowMaterialManager implements MaterialManager, GlowSpoutComponent 
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {}
 }

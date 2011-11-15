@@ -1,8 +1,8 @@
 package net.glowstone.spout;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.plugin.Plugin;
 import org.getspout.spoutapi.player.FileManager;
-import org.getspout.spoutapi.player.SpoutPlayer;
 
 import java.io.File;
 import java.io.InputStream;
@@ -71,7 +71,7 @@ public class GlowFileManager implements FileManager, GlowSpoutComponent {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {
         // TODO: Implement this class

@@ -54,7 +54,7 @@ public final class BlockPlacementMessageHandler extends MessageHandler<BlockPlac
         
         Block target = against.getRelative(face);
         ItemStack holding = player.getItemInHand();
-        if (EventFactory.onPlayerInteract(player, Action.RIGHT_CLICK_BLOCK, target, face).isCancelled()) return;
+        if (EventFactory.onPlayerInteract(player, Action.RIGHT_CLICK_BLOCK, against, face).isCancelled()) return;
         if (holding != null && holding.getTypeId() < 256) {
             if (target.isEmpty() || target.isLiquid()) {
                 BlockState newState = target.getState();

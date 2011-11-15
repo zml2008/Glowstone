@@ -2,6 +2,7 @@ package net.glowstone.spout;
 
 import java.util.HashMap;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
@@ -185,7 +186,7 @@ public class GlowSkyManager implements SkyManager, GlowSpoutComponent {
 
     // misc
     
-    public void registerPlayer(SpoutPlayer player) {
+    public void registerPlayer(GlowPlayer player) {
         if (player.isSpoutCraftEnabled()) {
             String moon = getMoonTextureUrl(player);
             moon = moon == null ? "" : moon;

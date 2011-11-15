@@ -15,6 +15,7 @@ import net.glowstone.entity.GlowPlayer;
 import net.glowstone.msg.IdentificationMessage;
 import net.glowstone.net.Session;
 import net.glowstone.net.Session.State;
+import net.glowstone.spout.GlowSpoutManager;
 import org.bukkit.GameMode;
 import org.bukkit.event.player.PlayerPreLoginEvent;
 
@@ -57,6 +58,7 @@ public final class IdentificationMessageHandler extends MessageHandler<Identific
                 }
                 GlowPlayer newPlayer = new GlowPlayer(session, event.getName()); // TODO case-correct the name
                 session.setPlayer(newPlayer);
+                GlowSpoutManager.registerPlayer(newPlayer);
             } else {
                 session.getServer().getLogger().log(Level.INFO, "Failed to authenticate {0} with minecraft.net.", message.getName());
                 session.disconnect("Player identification failed!");

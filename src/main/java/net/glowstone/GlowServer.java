@@ -511,6 +511,8 @@ public final class GlowServer implements Server {
                 ex.printStackTrace();
             }
         }
+
+        GlowAbout.setUp();
     }
     
     /**

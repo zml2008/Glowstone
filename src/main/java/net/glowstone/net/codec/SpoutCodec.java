@@ -44,17 +44,26 @@ public final class SpoutCodec extends MessageCodec<SpoutMessage> {
             GlowServer.logger.log(Level.WARNING, "Unknown Spoutcraft packet received with ID " + id);
             return null;
         } else if (packet.getVersion() != version) {
-            GlowServer.logger.log(Level.WARNING, "Packet version mismatch! I have "+ packet.getVersion() + "but they have " + version);
+            GlowServer.logger.log(Level.WARNING, "Packet version mismatch! I have " + packet.getVersion() + " but they have " + version);
         }
         ByteArrayInputStream bytes = new ByteArrayInputStream(data);
         packet.readData(new DataInputStream(bytes));
-        
+        if (packet instanceof CompressablePacket) {
+            if (((CompressablePacket) packet).isCompressed()) {
+                ((CompressablePacket) packet).decompress();
+            }
+        }
         return new SpoutMessage(packet);
     }
 
     @Override
     public ChannelBuffer encode(SpoutMessage message) throws IOException {
         SpoutPacket packet = message.getPacket();
+        if (packet instanceof CompressablePacket) {
+            if (!((CompressablePacket) packet).isCompressed()) {
+                ((CompressablePacket) packet).compress();
+            }
+        }
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();
         packet.writeData(new DataOutputStream(bytes));
         

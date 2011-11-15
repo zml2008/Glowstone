@@ -195,7 +195,7 @@ public class GlowAppearanceManager implements AppearanceManager, GlowSpoutCompon
         }
     }
 
-    public void registerPlayer(SpoutPlayer player) {
+    public void registerPlayer(GlowPlayer player) {
         if (!player.isSpoutCraftEnabled()) {
             return;
         }

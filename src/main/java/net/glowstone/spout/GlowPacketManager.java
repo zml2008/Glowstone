@@ -1,12 +1,12 @@
 package net.glowstone.spout;
 
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.ArrayList;
+
+import net.glowstone.entity.GlowPlayer;
 import org.getspout.spoutapi.packet.PacketManager;
 import org.getspout.spoutapi.packet.listener.PacketListener;
 import org.getspout.spoutapi.packet.standard.MCPacket;
-import org.getspout.spoutapi.player.SpoutPlayer;
 
 /**
  * Packet manager for Spout integration.
@@ -43,7 +43,7 @@ public class GlowPacketManager implements PacketManager, GlowSpoutComponent {
     // misc
 
     public MCPacket getInstance( final int packetId) {
-        throw new UnsupportedOperationException("Glowstone's packet system doesn't work like this!");
+        throw new UnsupportedOperationException("Glowstone's packet system doesn't work like this! (Actually zml is just too lazy to make this work).");
     }
     
     private ArrayList<PacketListener> getList(int packetId) {
@@ -60,7 +60,7 @@ public class GlowPacketManager implements PacketManager, GlowSpoutComponent {
         }
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {
         clearAllListeners();

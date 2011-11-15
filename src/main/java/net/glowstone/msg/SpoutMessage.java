@@ -16,5 +16,9 @@ public class SpoutMessage extends Message {
     public SpoutPacket getPacket() {
         return packet;
     }
-    
+
+    @Override
+    public String toString() {
+        return "SpoutMessage{packet=" + packet + "}";
+    }
 }

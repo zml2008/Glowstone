@@ -4,11 +4,12 @@ import org.bukkit.entity.Weather;
 
 import net.glowstone.GlowServer;
 import net.glowstone.GlowWorld;
+import org.getspout.spoutapi.entity.SpoutWeather;
 
 /**
  * Represents a Weather related entity, such as a storm.
  */
-public abstract class GlowWeather extends GlowEntity implements Weather {
+public abstract class GlowWeather extends GlowEntity implements Weather, SpoutWeather {
 
     public GlowWeather(GlowServer server, GlowWorld world) {
         super(server, world);

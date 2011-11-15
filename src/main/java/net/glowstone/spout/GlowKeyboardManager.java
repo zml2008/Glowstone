@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.plugin.Plugin;
 
 import org.getspout.spoutapi.keyboard.Keyboard;
@@ -97,7 +98,7 @@ public class GlowKeyboardManager implements KeyboardManager, GlowSpoutComponent 
         }
     }
 
-    public void registerPlayer(SpoutPlayer player) {}
+    public void registerPlayer(GlowPlayer player) {}
 
     public void resetAll() {}
 }

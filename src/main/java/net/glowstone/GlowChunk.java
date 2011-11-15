@@ -237,8 +237,12 @@ public final class GlowChunk implements Chunk, SpoutChunk {
         return SpoutManager.getChunkDataManager().removeChunkData(id, world, x, z);
     }
 
-    public BlockVector[] getTaggedBlocks() {
-        return SpoutManager.getChunkDataManager().getTaggedBlocks(world, x, z);
+    public short[] getCustomBlockIds() {
+        return SpoutManager.getChunkDataManager().getCustomBlockIds(world, x, z);
+    }
+
+    public void setCustomBlockIds(short[] shorts) {
+        SpoutManager.getChunkDataManager().setCustomBlockIds(world, x, z, shorts);
     }
     
     // ======== Helper Functions ========

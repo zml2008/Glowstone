@@ -21,11 +21,12 @@ import net.glowstone.msg.Message;
 import net.glowstone.msg.SpawnPlayerMessage;
 import net.glowstone.util.Position;
 import net.glowstone.inventory.GlowPlayerInventory;
+import org.getspout.spoutapi.entity.SpoutHumanEntity;
 
 /**
  * Represents a human entity, such as an NPC or a player.
  */
-public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanEntity {
+public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanEntity, SpoutHumanEntity {
 
     /**
      * The name of this human.

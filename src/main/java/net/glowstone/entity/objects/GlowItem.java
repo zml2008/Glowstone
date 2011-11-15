@@ -9,12 +9,13 @@ import net.glowstone.msg.Message;
 import net.glowstone.msg.SpawnItemMessage;
 import net.glowstone.GlowWorld;
 import net.glowstone.GlowServer;
+import org.getspout.spoutapi.entity.SpoutItem;
 
 /**
  * Represents an item that is also an {@link net.glowstone.entity.GlowEntity} within the world.
  * @author Graham Edgecombe
  */
-public final class GlowItem extends GlowEntity implements Item {
+public final class GlowItem extends GlowEntity implements Item, SpoutItem {
 
     /**
      * The item.

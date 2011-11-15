@@ -15,6 +15,7 @@ import net.glowstone.GlowChunk;
 import net.glowstone.GlowWorld;
 import net.glowstone.entity.GlowPlayer;
 import net.glowstone.msg.BlockChangeMessage;
+import org.getspout.spoutapi.inventory.SpoutItemStack;
 import org.getspout.spoutapi.material.CustomBlock;
 import org.getspout.spoutapi.material.MaterialData;
 
@@ -111,7 +112,7 @@ public class GlowBlock implements Block, SpoutBlock {
         return getRelative(face.getModX(), face.getModY(), face.getModZ());
     }
 
-    public Block getRelative(BlockFace face, int distance) {
+    public GlowBlock getRelative(BlockFace face, int distance) {
         return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
     }
     
@@ -218,7 +219,7 @@ public class GlowBlock implements Block, SpoutBlock {
     }
 
     public void setTypeIdAsync(int type) {
-        setTypeIdAndDataAsync(type, (byte)0);
+        setTypeIdAndDataAsync(type, (byte) 0);
     }
 
     public void setDataAsync(byte data) {
@@ -265,11 +266,11 @@ public class GlowBlock implements Block, SpoutBlock {
         return MaterialData.getBlock(getTypeId(), getData());
     }
 
-    public ItemStack toItemStack() {
+    public SpoutItemStack toItemStack() {
         return toItemStack(1);
     }
 
-    public ItemStack toItemStack(int amount) {
+    public SpoutItemStack toItemStack(int amount) {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
