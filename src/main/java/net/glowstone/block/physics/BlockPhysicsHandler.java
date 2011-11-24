@@ -2,7 +2,9 @@ package net.glowstone.block.physics;
 
 import net.glowstone.block.GlowBlock;
 import net.glowstone.block.GlowBlockState;
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.block.BlockFace;
+import org.bukkit.material.MaterialData;
 
 public interface BlockPhysicsHandler {
     public boolean canPlaceAt(GlowBlock block, BlockFace against);
@@ -34,10 +36,20 @@ public interface BlockPhysicsHandler {
     /**
      * Performs a special action when placing the block.
      * @param block The block where a normal placement would occur.
-     * @param type The type of the player's current item in hand.
-     * @param data The data of the player's current item in hand.
+     * @param data The type and data of the player's current item in hand.
      * @param against The blockface that this placement action occured against
      * @return Whether to place the block normally or just subtract an item.
      */
-    public GlowBlockState placeAgainst(GlowBlockState block, int type, short data, BlockFace against);
+    public GlowBlockState placeAgainst(GlowBlockState block, MaterialData data, BlockFace against);
+
+
+    /**
+     * Performs an action on block interaction.
+     * @param player The player who interacted with the block.
+     * @param block The block this player interacted with.
+     * @param rightClick Whether this interaction was a right click.
+     * @param against The clicked face.
+     * @return Whether the normal block actions can continue normally.
+     */
+    public boolean interact(GlowPlayer player, GlowBlock block, boolean rightClick, BlockFace against);
 }

@@ -1,6 +1,9 @@
 package net.glowstone.item;
 
+import net.glowstone.block.BlockID;
+import net.glowstone.item.physics.*;
 import org.bukkit.Material;
+import org.bukkit.material.MaterialData;
 
 import java.util.Arrays;
 
@@ -78,9 +81,9 @@ public enum ItemProperties {
     GOLDEN_APPLE(ItemID.GOLDEN_APPLE),
     SIGN(ItemID.SIGN),
     WOOD_DOOR(ItemID.WOOD_DOOR),
-    BUCKET(ItemID.BUCKET),
-    WATER_BUCKET(ItemID.WATER_BUCKET),
-    LAVA_BUCKET(ItemID.LAVA_BUCKET),
+    BUCKET(ItemID.BUCKET, physics(new EmptyBucketPhysics(new int[] {BlockID.STATIONARY_LAVA, BlockID.STATIONARY_WATER}, new int[] {ItemID.LAVA_BUCKET, ItemID.WATER_BUCKET}))),
+    WATER_BUCKET(ItemID.WATER_BUCKET, physics(new FilledBucketPhysics(ItemID.WATER_BUCKET, BlockID.WATER, true))),
+    LAVA_BUCKET(ItemID.LAVA_BUCKET, physics(new FilledBucketPhysics(ItemID.LAVA_BUCKET, BlockID.LAVA, false))),
     MINECART(ItemID.MINECART),
     SADDLE(ItemID.SADDLE),
     IRON_DOOR(ItemID.IRON_DOOR),
@@ -127,13 +130,13 @@ public enum ItemProperties {
     GOLD_NUGGET(ItemID.GOLD_NUGGET),
     NETHER_STALK(ItemID.NETHER_WART_SEED),
     POTION(ItemID.POTION),
-    GLASS_BOTTLE(ItemID.GLASS_BOTTLE),
+    GLASS_BOTTLE(ItemID.GLASS_BOTTLE, physics(new GlassBottlePhysics())),
     SPIDER_EYE(ItemID.SPIDER_EYE),
     FERMENTED_SPIDER_EYE(ItemID.FERMENTED_SPIDER_EYE),
     BLAZE_POWDER(ItemID.BLAZE_POWDER),
     MAGMA_CREAM(ItemID.MAGMA_CREAM),
     BREWING_STAND_ITEM(ItemID.BREWING_STAND),
-    CAULDRON_ITEM(ItemID.CAULDRON),
+    CAULDRON_ITEM(ItemID.CAULDRON, placedBlock(new MaterialData(BlockID.CAULDRON))),
     EYE_OF_ENDER(ItemID.EYE_OF_ENDER),
     GLISTERING_MELON(ItemID.GLISTERING_MELON),
     DISC_13(ItemID.DISC_13),
@@ -180,9 +183,12 @@ public enum ItemProperties {
 
     private final int id;
     private boolean nbtData;
+    private MaterialData placedBlock;
+    private ItemPhysics physics;
 
     private ItemProperties(int id, Property... props) {
         this.id = id;
+        this.physics = new DefaultItemPhysics(id);
         
         for (Property p : props) {
             p.apply(this);
@@ -196,6 +202,14 @@ public enum ItemProperties {
     public int getId() {
         return id;
     }
+
+    public ItemPhysics getPhysics() {
+        return physics;
+    }
+
+    public MaterialData getPlacedBlock() {
+        return placedBlock;
+    }
     
     // -----------------
     
@@ -206,6 +220,18 @@ public enum ItemProperties {
     private static Property nbtData() {
         return new Property() { public void apply(ItemProperties p) {
             p.nbtData = true;
+        }};
+    }
+
+    private static Property physics(final ItemPhysics physics) {
+        return new Property() { public void apply(ItemProperties p) {
+                p.physics = physics;
+        }};
+    }
+
+    private static Property placedBlock(final MaterialData placedBlock) {
+        return new Property() { public void apply(ItemProperties p) {
+            p.placedBlock = placedBlock;
         }};
     }
 }

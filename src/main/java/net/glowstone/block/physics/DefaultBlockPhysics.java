@@ -3,6 +3,7 @@ package net.glowstone.block.physics;
 import net.glowstone.block.BlockProperties;
 import net.glowstone.block.GlowBlock;
 import net.glowstone.block.GlowBlockState;
+import net.glowstone.entity.GlowPlayer;
 import org.bukkit.block.BlockFace;
 import org.bukkit.material.MaterialData;
 
@@ -24,10 +25,14 @@ public class DefaultBlockPhysics implements BlockPhysicsHandler {
         return current;
     }
 
-    public GlowBlockState placeAgainst(GlowBlockState block, int type, short data, BlockFace against) {
-        block.setTypeId(type);
-        block.setData(new MaterialData(block.getTypeId(),
-                (byte) BlockProperties.get(block.getTypeId()).getPhysics().getPlacedMetadata(data, against)));
+    public GlowBlockState placeAgainst(GlowBlockState block, MaterialData data, BlockFace against) {
+        block.setTypeId(data.getItemTypeId());
+        data.setData((byte)getPlacedMetadata(data.getData(), against));
+        block.setData(data);
         return block;
+    }
+
+    public boolean interact(GlowPlayer player, GlowBlock block, boolean rightClick, BlockFace against) {
+        return true;
     }
 }
