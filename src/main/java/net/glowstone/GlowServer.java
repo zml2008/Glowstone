@@ -204,6 +204,8 @@ public final class GlowServer implements Server {
      */
     private final Map<String, OfflinePlayer> offlineCache = new HashMap<String, OfflinePlayer>();
 
+    private File worldsFolder = new File("");
+
     /**
      * Creates a new server.
      */
@@ -751,6 +753,10 @@ public final class GlowServer implements Server {
 
     public ConsoleCommandSender getConsoleSender() {
         return consoleManager.getSender();
+    }
+
+    public File getWorldContainer() {
+        return worldsFolder;
     }
 
     /**

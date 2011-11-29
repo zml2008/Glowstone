@@ -1,5 +1,6 @@
 package net.glowstone;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
@@ -24,8 +25,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.permissions.Permissible;
-import org.bukkit.permissions.WorldPermissionsContext;
 import org.bukkit.util.Vector;
 
 import net.glowstone.entity.*;
@@ -159,10 +158,7 @@ public final class GlowWorld implements World {
      */
     private final UUID uid;
 
-    /**
-     * This world's permissions context
-     */
-    private final WorldPermissionsContext permissionsContext = new WorldPermissionsContext(this);
+    private final File storageFolder;
 
     /**
      * Creates a new world with the specified chunk I/O service, environment,
@@ -176,6 +172,7 @@ public final class GlowWorld implements World {
         this.server = server;
         this.name = name;
         this.environment = environment;
+        this.storageFolder = new File(server.getWorldContainer(), name);
         provider.setWorld(this);
         chunks = new ChunkManager(this, provider.getChunkIoService(), generator);
         storageProvider = provider;
@@ -885,8 +882,8 @@ public final class GlowWorld implements World {
         return Difficulty.PEACEFUL;
     }
 
-    public WorldPermissionsContext getPermissionsContext() {
-        return permissionsContext;
+    public File getWorldFolder() {
+        return storageFolder;
     }
 
     // level data write
