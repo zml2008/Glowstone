@@ -1,15 +1,12 @@
 package net.glowstone.block.physics;
 
-import net.glowstone.block.BlockID;
 import net.glowstone.block.GlowBlock;
-import net.glowstone.block.data.Attachable;
 import net.glowstone.block.data.ToggleableAttachable;
 import net.glowstone.entity.GlowPlayer;
-import org.bukkit.Bukkit;
 import org.bukkit.block.BlockFace;
 
 public class ToggleableAttachablePhysics extends AttachablePhysics {
-    private final ToggleableAttachable data;
+    protected final ToggleableAttachable data;
 
     public ToggleableAttachablePhysics(ToggleableAttachable data) {
         super(data);

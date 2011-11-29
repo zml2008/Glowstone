@@ -1,6 +1,5 @@
 package net.glowstone.block.physics;
 
-import net.glowstone.block.BlockProperties;
 import net.glowstone.block.GlowBlock;
 import net.glowstone.block.GlowBlockState;
 import net.glowstone.entity.GlowPlayer;

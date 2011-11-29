@@ -14,6 +14,10 @@ public class Trapdoor extends ToggleableAttachable {
         return existing ^ 4;
     }
 
+    public int setOpen(int existing, boolean open) {
+        return open ? existing | 0x04 : existing & ~0x04;
+    }
+
     @Override
     public boolean isOpen(int existing) {
         return (existing & 0x04) == 0x4;

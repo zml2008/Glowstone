@@ -15,7 +15,7 @@ public interface ItemPhysics {
      * @param data The data of the item being placed
      * @return -1 to not place anything
      */
-    public MaterialData getPlacedBlock(int data);
+    public MaterialData getPlacedBlock(BlockFace against, int data);
 
     /**
      * Perform an action when interacting while having an item in hand.

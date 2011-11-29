@@ -15,7 +15,7 @@ public class DefaultItemPhysics implements ItemPhysics {
         this.id = itemId;
     }
 
-    public MaterialData getPlacedBlock(int data) {
+    public MaterialData getPlacedBlock(BlockFace against, int data) {
         MaterialData type = ItemProperties.get(id).getPlacedBlock();
         if (type == null) type = NO_PLACE;
         return type;

@@ -7,7 +7,7 @@ import net.glowstone.block.data.Attachable;
 import org.bukkit.block.BlockFace;
 
 public class AttachablePhysics extends DefaultBlockPhysics {
-    private Attachable data;
+    protected final Attachable data;
 
     public AttachablePhysics(Attachable data) {
         this.data = data;

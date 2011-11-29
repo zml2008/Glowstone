@@ -6,8 +6,12 @@ public abstract class ToggleableAttachable extends Attachable {
         super(id, requirement);
     }
 
-    public abstract int toggleOpen(int existing);
+    public int toggleOpen(int existing) {
+        return setOpen(existing, !isOpen(existing));
+    }
 
     public abstract boolean isOpen(int existing);
+
+    public abstract int setOpen(int existing, boolean open);
     
 }
