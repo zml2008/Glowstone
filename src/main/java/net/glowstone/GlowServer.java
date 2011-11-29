@@ -83,7 +83,7 @@ public final class GlowServer implements Server {
     /**
      * The configuration the server uses.
      */
-    private static YamlConfiguration config = new YamlConfiguration();
+    private static final YamlConfiguration config = new YamlConfiguration();
 
     /**
      * The protocol version supported by the server
@@ -200,9 +200,9 @@ public final class GlowServer implements Server {
     private boolean isShuttingDown = false;
 
     /**
-     * Provides various config helper methods
+     * A cache of existing OfflinePlayers
      */
-    private GlowConfiguration configurationManager = new GlowConfiguration(this);
+    private final Map<String, OfflinePlayer> offlineCache = new HashMap<String, OfflinePlayer>();
 
     /**
      * Creates a new server.
@@ -249,7 +249,7 @@ public final class GlowServer implements Server {
                 String moved = "", separator = "";
 
                 if (bukkit.get("database") != null) {
-                    config.set("database", bukkit.getConfigurationSection("database"));
+                    config.createSection("database", bukkit.getConfigurationSection("database").getValues(true));
                     moved += separator + "database settings";
                     separator = ", ";
                 }
@@ -267,7 +267,7 @@ public final class GlowServer implements Server {
                 }
 
                 if (bukkit.get("worlds") != null) {
-                    config.set("worlds", bukkit.getConfigurationSection("worlds"));
+                    config.createSection("worlds", bukkit.getConfigurationSection("worlds").getValues(true));
                     moved += separator + "world generators";
                     separator = ", ";
                 }
@@ -383,6 +383,7 @@ public final class GlowServer implements Server {
     private static boolean saveConfiguration() {
         try {
             config.save(configFile);
+            return true;
         } catch (IOException ex) {
             logger.log(Level.SEVERE, "Cannot save " + configFile, ex);
         }
@@ -472,6 +473,7 @@ public final class GlowServer implements Server {
         for (World world : getWorlds()) {
             unloadWorld(world, true);
         }
+        storeQueue.end();
         
         // Gracefully stop Netty
         group.close();
@@ -480,7 +482,6 @@ public final class GlowServer implements Server {
         // And finally kill the console
         consoleManager.stop();
 
-        storeQueue.end();
     }
     
     /**
@@ -686,7 +687,7 @@ public final class GlowServer implements Server {
     }
 
     public String getBukkitVersion() {
-        return configurationManager.getBukkitVersion();
+        return getClass().getPackage().getSpecificationVersion();
     }
 
     /**
@@ -1151,8 +1152,9 @@ public final class GlowServer implements Server {
     public int broadcast(String message, String permission) {
         int count = 0;
         for (Permissible permissible : getPluginManager().getPermissionSubscriptions(permission)) {
-            if (permissible instanceof CommandSender) {
+            if (permissible instanceof CommandSender && permissible.hasPermission(permission)) {
                 ((CommandSender) permissible).sendMessage(message);
+                ++count;
             }
         }
         return count;
@@ -1161,7 +1163,14 @@ public final class GlowServer implements Server {
     public OfflinePlayer getOfflinePlayer(String name) {
         OfflinePlayer player = getPlayerExact(name);
         if (player == null) {
-            player = new GlowOfflinePlayer(this, name);
+            player = offlineCache.get(name);
+            if (player == null) {
+                player = new GlowOfflinePlayer(this, name);
+                offlineCache.put(name, player);
+                // Call creation event here?
+            }
+        } else {
+            offlineCache.remove(name);
         }
         return player;
     }

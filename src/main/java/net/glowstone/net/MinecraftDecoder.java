@@ -2,6 +2,8 @@ package net.glowstone.net;
 
 import java.io.IOException;
 
+import gnu.trove.set.hash.TIntHashSet;
+import net.glowstone.msg.Message;
 import net.glowstone.net.codec.MessageCodec;
 
 import org.jboss.netty.buffer.ChannelBuffer;
@@ -16,6 +18,8 @@ import org.jboss.netty.handler.codec.replay.VoidEnum;
  */
 public class MinecraftDecoder extends ReplayingDecoder<VoidEnum> {
 
+    private final TIntHashSet ignorePrint = new TIntHashSet(new int[] {0x0A});
+
     private int previousOpcode = -1;
 
     @Override
@@ -28,8 +32,10 @@ public class MinecraftDecoder extends ReplayingDecoder<VoidEnum> {
         }
 
         previousOpcode = opcode;
-
-        return codec.decode(buf);
+        Message msg = codec.decode(buf);
+        //if (!ignorePrint.contains(opcode))
+        //System.out.println("Message C->S: " + msg);
+        return msg;
     }
 
 }

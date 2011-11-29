@@ -24,6 +24,8 @@ import org.bukkit.entity.Player;
 import org.bukkit.generator.BlockPopulator;
 import org.bukkit.generator.ChunkGenerator;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.permissions.Permissible;
+import org.bukkit.permissions.WorldPermissionsContext;
 import org.bukkit.util.Vector;
 
 import net.glowstone.entity.*;
@@ -156,6 +158,11 @@ public final class GlowWorld implements World {
      * The world's UUID
      */
     private final UUID uid;
+
+    /**
+     * This world's permissions context
+     */
+    private final WorldPermissionsContext permissionsContext = new WorldPermissionsContext(this);
 
     /**
      * Creates a new world with the specified chunk I/O service, environment,
@@ -488,7 +495,7 @@ public final class GlowWorld implements World {
     }
 
     public int getBlockTypeIdAt(int x, int y, int z) {
-        return ((GlowChunk) getChunkAt(x >> 4, z >> 4)).getType(x & 0xF, z & 0xF, y);
+        return getChunkAt(x >> 4, z >> 4).getType(x & 0xF, z & 0xF, y);
     }
 
     public int getHighestBlockYAt(int x, int z) {
@@ -871,11 +878,15 @@ public final class GlowWorld implements World {
     }
 
     public void setDifficulty(Difficulty difficulty) {
-        throw new UnsupportedOperationException("Not implemented yet");
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
     public Difficulty getDifficulty() {
         return Difficulty.PEACEFUL;
+    }
+
+    public WorldPermissionsContext getPermissionsContext() {
+        return permissionsContext;
     }
 
     // level data write

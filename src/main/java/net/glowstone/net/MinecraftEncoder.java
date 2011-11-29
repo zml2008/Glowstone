@@ -1,7 +1,9 @@
 package net.glowstone.net;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 
+import gnu.trove.set.hash.TIntHashSet;
 import net.glowstone.msg.Message;
 import net.glowstone.net.codec.MessageCodec;
 
@@ -17,6 +19,8 @@ import org.jboss.netty.handler.codec.oneone.OneToOneEncoder;
  */
 public class MinecraftEncoder extends OneToOneEncoder {
 
+    private static final TIntHashSet ignoredPrint = new TIntHashSet(new int[] {0x04});
+
     @SuppressWarnings("unchecked")
     @Override
     protected Object encode(ChannelHandlerContext ctx, Channel c, Object msg) throws Exception {
@@ -28,6 +32,8 @@ public class MinecraftEncoder extends OneToOneEncoder {
             if (codec == null) {
                 throw new IOException("Unknown message type: " + clazz + ".");
             }
+            //if (!ignoredPrint.contains(codec.getOpcode()))
+            //System.out.println("Message S->C: "+ message);
 
             ChannelBuffer opcodeBuf = ChannelBuffers.buffer(1);
             opcodeBuf.writeByte(codec.getOpcode());

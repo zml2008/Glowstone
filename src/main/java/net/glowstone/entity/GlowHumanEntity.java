@@ -14,6 +14,7 @@ import org.bukkit.permissions.PermissibleBase;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionAttachment;
 import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.permissions.PermissionsContext;
 import org.bukkit.plugin.Plugin;
 
 import net.glowstone.GlowServer;
@@ -150,16 +151,32 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
         return permissions.isPermissionSet(name);
     }
 
+    public boolean isPermissionSet(String name, PermissionsContext context) {
+        return permissions.isPermissionSet(name, context);
+    }
+
     public boolean isPermissionSet(Permission perm) {
         return permissions.isPermissionSet(perm);
+    }
+
+    public boolean isPermissionSet(Permission perm, PermissionsContext context) {
+        return permissions.isPermissionSet(perm, context);
     }
 
     public boolean hasPermission(String name) {
         return permissions.hasPermission(name);
     }
 
+    public boolean hasPermission(String name, PermissionsContext context) {
+        return permissions.hasPermission(name, context);
+    }
+
     public boolean hasPermission(Permission perm) {
         return permissions.hasPermission(perm);
+    }
+
+    public boolean hasPermission(Permission perm, PermissionsContext context) {
+        return permissions.hasPermission(perm, context);
     }
 
     public PermissionAttachment addAttachment(Plugin plugin) {
@@ -174,8 +191,16 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
         return permissions.addAttachment(plugin, name, value);
     }
 
+    public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, PermissionsContext context) {
+        return permissions.addAttachment(plugin, name, value, context);
+    }
+
     public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, int ticks) {
         return permissions.addAttachment(plugin, name, value, ticks);
+    }
+
+    public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, int ticks, PermissionsContext context) {
+        return permissions.addAttachment(plugin, name, value, ticks, context);
     }
 
     public void removeAttachment(PermissionAttachment attachment) {
@@ -188,6 +213,10 @@ public abstract class GlowHumanEntity extends GlowLivingEntity implements HumanE
 
     public Set<PermissionAttachmentInfo> getEffectivePermissions() {
         return permissions.getEffectivePermissions();
+    }
+
+    public Set<PermissionAttachmentInfo> getEffectivePermissions(PermissionsContext context) {
+        return permissions.getEffectivePermissions(context);
     }
 
     public boolean isOp() {
