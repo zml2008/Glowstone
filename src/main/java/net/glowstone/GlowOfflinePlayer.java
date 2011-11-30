@@ -90,40 +90,19 @@ public class GlowOfflinePlayer implements OfflinePlayer, Permissible {
         return permissions.isPermissionSet(name);
     }
 
-    public boolean isPermissionSet(String name, String worldName) {
-        return permissions.isPermissionSet(name, worldName);
-    }
-
     public boolean isPermissionSet(Permission perm) {
         return permissions.isPermissionSet(perm);
     }
-
-    public boolean isPermissionSet(Permission perm, String worldName) {
-        return permissions.isPermissionSet(perm,  worldName);
-    }
-
     public boolean hasPermission(String name) {
         return permissions.hasPermission(name);
-    }
-
-    public boolean hasPermission(String name, String worldName) {
-        return permissions.hasPermission(name, worldName);
     }
 
     public boolean hasPermission(Permission perm) {
         return permissions.hasPermission(perm);
     }
 
-    public boolean hasPermission(Permission perm, String worldName) {
-        return permissions.hasPermission(perm, worldName);
-    }
-
     public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value) {
         return permissions.addAttachment(plugin, name, value);
-    }
-
-    public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, String worldName) {
-        return permissions.addAttachment(plugin, name, value, worldName);
     }
 
     public PermissionAttachment addAttachment(Plugin plugin) {
@@ -133,11 +112,6 @@ public class GlowOfflinePlayer implements OfflinePlayer, Permissible {
     public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, int ticks) {
         return permissions.addAttachment(plugin, name, value, ticks);
     }
-
-    public PermissionAttachment addAttachment(Plugin plugin, String name, boolean value, int ticks, String worldName) {
-        return permissions.addAttachment(plugin, name, value, ticks, worldName);
-    }
-
     public PermissionAttachment addAttachment(Plugin plugin, int ticks) {
         return permissions.addAttachment(plugin, ticks);
     }
@@ -152,9 +126,5 @@ public class GlowOfflinePlayer implements OfflinePlayer, Permissible {
 
     public Set<PermissionAttachmentInfo> getEffectivePermissions() {
         return permissions.getEffectivePermissions();
-    }
-
-    public Set<PermissionAttachmentInfo> getEffectivePermissions(String worldName) {
-        return permissions.getEffectivePermissions(worldName);
     }
 }

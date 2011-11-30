@@ -78,7 +78,7 @@ public final class BlockPlacementMessageHandler extends MessageHandler<BlockPlac
             }
             MaterialData placedId = new MaterialData(holding.getTypeId(), (byte) holding.getDurability());
             if (placedId.getItemTypeId() > 255)
-                placedId = ItemProperties.get(placedId.getItemTypeId()).getPhysics().getPlacedBlock(holding.getDurability());
+                placedId = ItemProperties.get(placedId.getItemTypeId()).getPhysics().getPlacedBlock(face, holding.getDurability());
             if (placedId.getItemTypeId() == -1) sendRevert = true;
             if (!sendRevert && placedId.getItemTypeId() < 256) {
                 if (target.isEmpty() || target.isLiquid()) {
