@@ -158,8 +158,6 @@ public final class GlowWorld implements World {
      */
     private final UUID uid;
 
-    private final File storageFolder;
-
     /**
      * Creates a new world with the specified chunk I/O service, environment,
      * and world generator.
@@ -172,7 +170,6 @@ public final class GlowWorld implements World {
         this.server = server;
         this.name = name;
         this.environment = environment;
-        this.storageFolder = new File(server.getWorldContainer(), name);
         provider.setWorld(this);
         chunks = new ChunkManager(this, provider.getChunkIoService(), generator);
         storageProvider = provider;
@@ -882,10 +879,6 @@ public final class GlowWorld implements World {
         return Difficulty.PEACEFUL;
     }
 
-    public File getWorldFolder() {
-        return storageFolder;
-    }
-
     // level data write
 
     void writeWorldData(boolean async) {
@@ -946,5 +939,12 @@ public final class GlowWorld implements World {
             return false;
         }
         return true;
+    }
+
+    /** Get the world folder.
+     * @return world folder
+     */
+    public File getWorldFolder() {
+        return storageProvider.getFolder();
     }
 }

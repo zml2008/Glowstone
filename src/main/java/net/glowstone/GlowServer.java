@@ -204,8 +204,6 @@ public final class GlowServer implements Server {
      */
     private final Map<String, OfflinePlayer> offlineCache = new HashMap<String, OfflinePlayer>();
 
-    private File worldsFolder = new File("");
-
     /**
      * Creates a new server.
      */
@@ -266,6 +264,12 @@ public final class GlowServer implements Server {
                     config.set("server.folders.update", bukkit.getString("settings.update-folder"));
                     moved += separator + "update folder";
                     separator = ", ";
+                }
+
+                if(bukkit.getString("settings.world-container") != null) {
+                    config.set("server.folders.world-container", bukkit.getString("settings.world-container"));
+                    moved += separator + "world container";
+                    separator = "m ";
                 }
 
                 if (bukkit.get("worlds") != null) {
@@ -755,10 +759,6 @@ public final class GlowServer implements Server {
         return consoleManager.getSender();
     }
 
-    public File getWorldContainer() {
-        return worldsFolder;
-    }
-
     /**
      * Broadcast a message to all players.
      *
@@ -956,7 +956,7 @@ public final class GlowServer implements Server {
             creator.generator(getGenerator(creator.name(), creator.environment()));
         }
 
-        world = new GlowWorld(this, creator.name(), creator.environment(), creator.seed(), new McRegionWorldStorageProvider(new File(creator.name())), creator.generator());
+        world = new GlowWorld(this, creator.name(), creator.environment(), creator.seed(), new McRegionWorldStorageProvider(new File(getWorldContainer(), creator.name())), creator.generator());
         worlds.add(world);
         return world;
     }
@@ -1258,6 +1258,13 @@ public final class GlowServer implements Server {
 
     public boolean getFuzzyCommandMatching() {
         return config.getBoolean("server.fuzzy-command-matching", false);
+    }
+
+    /** The folder of world folders.
+     * @return The folder of world folders.
+     */
+    public File getWorldContainer() {
+        return new File(config.getString("server.folders.world-container", "."));
     }
      
 }
